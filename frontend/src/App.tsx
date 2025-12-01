@@ -7,6 +7,7 @@ import { AdminProvider } from './contexts/AdminProvider';
 import LoginScreen from './components/LoginScreen';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
+import LayoutShell from './components/LayoutShell';
 import AdminUserLogs from './components/AdminUserLogs';
 import WhatsAppIntegration from './components/WhatsAppIntegration';
 import ChatbotWidget from './components/ChatbotWidget';
@@ -19,10 +20,13 @@ const AppContent: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-teal-600 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-300 mx-auto mb-4"></div>
-          <p className="text-gray-200 text-lg">Loading Mining Comminution Optimizer...</p>
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-2 border-neutral-300 dark:border-neutral-700" />
+            <div className="absolute inset-0 h-12 w-12 rounded-full border-2 border-brand-600 border-t-transparent animate-spin" aria-label="Loading" />
+          </div>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 font-medium tracking-wide">Initializing system...</p>
         </div>
       </div>
     );
@@ -33,18 +37,20 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={
-        user.role === 'user' ? <UserDashboard /> : <AdminDashboard />
-      } />
-      <Route path="/admin/user-logs" element={<AdminUserLogs />} />
-      <Route path="/whatsapp" element={<WhatsAppIntegration />} />
-      <Route path="/chatbot" element={<ChatbotWidget />} />
-      <Route path="/leaderboard" element={<PointsLeaderboard />} />
-      <Route path="/map" element={<EnergyMap />} />
-      <Route path="/digital-twin" element={<DigitalTwin />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <LayoutShell>
+      <Routes>
+        <Route path="/" element={
+          user.role === 'user' ? <UserDashboard /> : <AdminDashboard />
+        } />
+        <Route path="/admin/user-logs" element={<AdminUserLogs />} />
+        <Route path="/whatsapp" element={<WhatsAppIntegration />} />
+        <Route path="/chatbot" element={<ChatbotWidget />} />
+        <Route path="/leaderboard" element={<PointsLeaderboard />} />
+        <Route path="/map" element={<EnergyMap />} />
+        <Route path="/digital-twin" element={<DigitalTwin />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </LayoutShell>
   );
 };
 

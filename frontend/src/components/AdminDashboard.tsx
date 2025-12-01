@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useAdmin } from '../contexts/AdminProvider';
 import { 
-  Settings, BarChart3, AlertTriangle, Map, LogOut, MessageCircle, Trophy, Users,
-  Sun, Wind, Battery, Zap, CheckCircle, XCircle, Clock, TrendingUp, Eye
+  Settings, BarChart3, AlertTriangle, Map, LogOut, MessageCircle, Users,
+  Sun, Wind, Zap, CheckCircle, XCircle, Clock, TrendingUp, Eye
 } from 'lucide-react';
+import { Panel } from './ui/Panel';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,16 +25,7 @@ const AdminDashboard: React.FC = () => {
 
   const energyModes = ['Crusher Only', 'Mill Only', 'Crusher+Mill', 'Full Circuit', 'AI Auto Mode'];
 
-  const handleEnergyModeChange = (mode: string) => {
-    const modeMap: { [key: string]: string } = {
-      'solar': 'Solar Only',
-      'wind': 'Wind Only', 
-      'solar+wind': 'Solar+Wind',
-      'solar+wind+grid': 'All Sources',
-      'grid': 'Grid Only'
-    };
-    setEnergyMode(modeMap[mode] || mode);
-  };
+  // removed legacy handler replaced by direct setEnergyMode usage
 
   const handleHardwareSync = async () => {
     setIsSyncing(true);
@@ -51,101 +45,75 @@ const AdminDashboard: React.FC = () => {
 
   const renderControl = () => (
     <div className="space-y-6">
-      {/* Energy Mode Selector */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">AI Control System</h3>
-        <div className="flex flex-wrap gap-3 mb-4">
-          {energyModes.map((mode) => (
-            <button
+      <Panel title="AI Control System" actions={
+        <Badge tone={mlAutoMode ? 'success' : 'neutral'} soft>
+          {mlAutoMode ? 'Auto-Tuning: On' : 'Auto-Tuning: Off'}
+        </Badge>
+      }>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {energyModes.map(mode => (
+            <Button
               key={mode}
+              size="sm"
+              variant={energyMode === mode ? 'primary' : 'outline'}
               onClick={() => setEnergyMode(mode)}
-              className={`px-4 py-2 rounded-full border transition-all ${
-                energyMode === mode
-                  ? 'bg-gray-700 text-white border-gray-700'
-                  : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-              }`}
             >
               {mode}
-            </button>
+            </Button>
           ))}
-        </div>
-        
-        {/* ML Auto Mode */}
-        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg border border-gray-300">
-          <div>
-            <h4 className="font-semibold text-gray-800">AI Auto-Tuning</h4>
-            <p className="text-sm text-gray-600">Dynamic parameter adjustment every few seconds</p>
-          </div>
-          <button
+          <Button
+            size="sm"
+            variant={mlAutoMode ? 'secondary' : 'ghost'}
             onClick={() => setMlAutoMode(!mlAutoMode)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              mlAutoMode ? 'bg-gray-700' : 'bg-gray-300'
-            }`}
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                mlAutoMode ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+            {mlAutoMode ? 'Disable Auto' : 'Enable Auto'}
+          </Button>
         </div>
-      </div>
-
-
-
-      {/* System Status */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">System Status</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {Object.entries(systemStatus).map(([system, status]) => (
-            <div key={system} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className={`w-3 h-3 rounded-full ${status ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="font-medium text-gray-800">{system}</span>
+            <div key={system} className="flex items-center gap-2 p-3 rounded-md bg-neutral-50 dark:bg-neutral-800">
+              <span className={`h-2.5 w-2.5 rounded-full ${status ? 'bg-success' : 'bg-danger'}`} />
+              <span className="text-xs font-medium">{system}</span>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Hardware Sync */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Hardware Synchronization</h3>
-        <div className="space-y-4">
-          <button
-            onClick={handleHardwareSync}
-            disabled={isSyncing}
-            className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 disabled:opacity-50"
-          >
-            {isSyncing ? 'Syncing...' : 'Sync Hardware'}
-          </button>
-          {isSyncing && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span>{syncProgress}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-gray-600 h-2 rounded-full transition-all duration-1000"
-                  style={{ width: `${syncProgress}%` }}
-                />
-              </div>
+      </Panel>
+      <Panel title="Hardware Synchronization" actions={
+        <Button size="sm" onClick={handleHardwareSync} disabled={isSyncing} variant="primary">
+          {isSyncing ? 'Syncing...' : 'Sync Hardware'}
+        </Button>
+      }>
+        {isSyncing && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-neutral-600 dark:text-neutral-400">
+              <span>Progress</span>
+              <span>{syncProgress}%</span>
             </div>
-          )}
-        </div>
-      </div>
+            <div className="h-2 w-full rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+              <div
+                className="h-full bg-brand-600 dark:bg-brand-500 transition-all duration-1000"
+                style={{ width: `${syncProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {!isSyncing && (
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">Initiate hardware sync to refresh live sensor mapping.</p>
+        )}
+      </Panel>
     </div>
   );
 
   const renderAnalytics = () => (
     <div className="space-y-6">
       {/* Regional Bar Chart */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Machine Data Overview</h3>
+      <div className="rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+        <h3 className="text-lg font-semibold mb-4 text-primary">Machine Data Overview</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={regionalData}>
-            <XAxis dataKey="region" />
-            <YAxis />
-            <Bar dataKey="usage" fill="#6b7280" />
+          <BarChart data={regionalData} className="chart-surface">
+            <XAxis dataKey="region" tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} axisLine={{ stroke: 'var(--chart-axis)' }} tickLine={{ stroke: 'var(--chart-axis)' }} />
+            <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} axisLine={{ stroke: 'var(--chart-axis)' }} tickLine={{ stroke: 'var(--chart-axis)' }} />
+            <Bar dataKey="usage" fill="var(--chart-bar)" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -153,18 +121,18 @@ const AdminDashboard: React.FC = () => {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gray-100 rounded-xl p-6 shadow-sm border border-gray-300 text-center">
-          <h4 className="text-sm font-medium text-gray-600 mb-2">Mill Motor Power</h4>
-          <p className="text-3xl font-bold text-gray-700">2.4 MW</p>
+          <h4 className="text-sm font-medium text-secondary mb-2">Mill Motor Power</h4>
+          <p className="text-3xl font-bold text-primary">2.4 MW</p>
         </div>
         <div className="bg-gray-100 rounded-xl p-6 shadow-sm border border-gray-300 text-center">
-          <h4 className="text-sm font-medium text-gray-600 mb-2">Crusher Load</h4>
-          <p className="text-3xl font-bold text-gray-700">85.2%</p>
-          <p className="text-sm text-gray-500">Optimal Range</p>
+          <h4 className="text-sm font-medium text-secondary mb-2">Crusher Load</h4>
+          <p className="text-3xl font-bold text-primary">85.2%</p>
+          <p className="text-sm text-tertiary">Optimal Range</p>
         </div>
         <div className="bg-gray-100 rounded-xl p-6 shadow-sm border border-gray-300 text-center">
-          <h4 className="text-sm font-medium text-gray-600 mb-2">Energy/Ton</h4>
-          <p className="text-3xl font-bold text-gray-700">18.5 kWh</p>
-          <p className="text-sm text-gray-500">Current</p>
+          <h4 className="text-sm font-medium text-secondary mb-2">Energy/Ton</h4>
+          <p className="text-3xl font-bold text-primary">18.5 kWh</p>
+          <p className="text-sm text-tertiary">Current</p>
         </div>
       </div>
 
@@ -234,61 +202,41 @@ const AdminDashboard: React.FC = () => {
 
   const renderPriorityManagement = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-semibold">Equipment Priority Management</h3>
-      <div className="space-y-4">
-        {priorityRequests.map((request) => (
-          <div key={request.id} className="bg-white rounded-xl p-6 shadow-sm border">
-            <div className="flex justify-between items-start">
+      <Panel title="Equipment Priority Management">
+        <div className="space-y-4">
+          {priorityRequests.map(request => (
+            <div key={request.id} className="flex items-start justify-between rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
               <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h4 className="font-semibold text-gray-800">{request.facility}</h4>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    request.priority === 'Critical' ? 'bg-purple-100 text-purple-800' :
-                    request.priority === 'High' ? 'bg-red-100 text-red-800' :
-                    request.priority === 'Medium' ? 'bg-orange-100 text-orange-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="text-sm font-semibold">{request.facility}</h4>
+                  <Badge tone={
+                    request.priority === 'Critical' ? 'accent' :
+                    request.priority === 'High' ? 'danger' :
+                    request.priority === 'Medium' ? 'warning' : 'success'
+                  } soft>
                     {request.priority}
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-gray-600 text-sm mb-3">{request.reason}</p>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-xs text-gray-500">
-                    {new Date(request.timestamp).toLocaleString()}
-                  </span>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">{request.reason}</p>
+                <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                  <Clock className="h-3 w-3" />
+                  <span>{new Date(request.timestamp).toLocaleString()}</span>
                 </div>
               </div>
-              <div className="flex flex-col space-y-2 ml-4">
+              <div className="flex flex-col gap-2 ml-4">
                 {request.status === 'Pending' ? (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => updateRequestStatus(request.id, 'Approved')}
-                      className="flex items-center space-x-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Approve</span>
-                    </button>
-                    <button
-                      onClick={() => updateRequestStatus(request.id, 'Rejected')}
-                      className="flex items-center space-x-1 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      <span>Reject</span>
-                    </button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="primary" onClick={() => updateRequestStatus(request.id, 'Approved')} iconLeft={<CheckCircle className="h-4 w-4" />}>Approve</Button>
+                    <Button size="sm" variant="danger" onClick={() => updateRequestStatus(request.id, 'Rejected')} iconLeft={<XCircle className="h-4 w-4" />}>Reject</Button>
                   </div>
                 ) : (
-                  <span className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                    request.status === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {request.status}
-                  </span>
+                  <Badge tone={request.status === 'Approved' ? 'success' : 'danger'}>{request.status}</Badge>
                 )}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      </Panel>
     </div>
   );
 
@@ -398,7 +346,7 @@ const AdminDashboard: React.FC = () => {
                   region.usage >= 80 ? 'bg-green-500' :
                   region.usage >= 70 ? 'bg-orange-500' : 'bg-red-500'
                 }`} />
-                <span className="font-medium text-gray-800">{region.region}</span>
+                <span className="font-medium text-primary">{region.region}</span>
               </div>
               <div className="flex items-center space-x-4">
                 <span className="text-lg font-bold text-blue-600">{region.usage}%</span>
@@ -412,36 +360,36 @@ const AdminDashboard: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+  <div className="min-h-screen bg-neutral-100 dark:bg-neutral-900">
       {/* Header */}
-      <div className="bg-gray-50 shadow-sm border-b border-gray-200">
+  <div className="bg-neutral-50 dark:bg-neutral-800 shadow-sm border-b border-gray-200 dark:border-neutral-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-semibold text-gray-800">Mining Engineer Dashboard</h1>
+            <h1 className="text-xl font-semibold text-primary">Mining Engineer Dashboard</h1>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/admin/user-logs')}
-                className="p-2 text-gray-600 hover:text-gray-800"
+                className="p-2 text-secondary hover:text-primary"
                 title="User Logs"
               >
                 <Users className="h-5 w-5" />
               </button>
               <button
                 onClick={() => navigate('/chatbot')}
-                className="p-2 text-gray-600 hover:text-gray-800"
+                className="p-2 text-secondary hover:text-primary"
               >
                 <MessageCircle className="h-5 w-5" />
               </button>
               <button
                 onClick={() => navigate('/digital-twin')}
-                className="p-2 text-gray-600 hover:text-gray-800"
+                className="p-2 text-secondary hover:text-primary"
                 title="Digital Twin"
               >
                 <Eye className="h-5 w-5" />
               </button>
               <button
                 onClick={logout}
-                className="p-2 text-gray-600 hover:text-red-600"
+                className="p-2 text-secondary hover:text-danger"
               >
                 <LogOut className="h-5 w-5" />
               </button>
@@ -452,7 +400,7 @@ const AdminDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Tab Navigation */}
-        <div className="bg-gray-50 rounded-xl shadow-sm border border-gray-200 mb-6">
+  <div className="rounded-xl shadow-sm border border-gray-200 dark:border-neutral-700 mb-6 bg-gray-50 dark:bg-neutral-800">
           <div className="flex">
             {[
               { id: 'control', label: 'AI Control', icon: Settings },
@@ -465,8 +413,8 @@ const AdminDashboard: React.FC = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 flex items-center justify-center space-x-2 py-4 px-6 border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-gray-600 text-gray-700 bg-gray-100'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
+                    ? 'border-neutral-600 text-primary bg-neutral-100 dark:bg-neutral-700'
+                    : 'border-transparent text-secondary hover:text-primary'
                 }`}
               >
                 <tab.icon className="h-5 w-5" />

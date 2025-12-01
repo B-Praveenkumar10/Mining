@@ -1,6 +1,149 @@
-/* @tailwind base; */
 @import 'tailwindcss/base';
-/* @tailwind components; */
 @import 'tailwindcss/components';
-/* @tailwind utilities; */
 @import 'tailwindcss/utilities';
+
+/* Typography smoothing & base adjustments */
+html {
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+}
+
+body {
+	font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+}
+
+/* Custom Scrollbar */
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+*::-webkit-scrollbar-track {
+	background: theme('colors.neutral.100');
+}
+*::-webkit-scrollbar-thumb {
+	background: theme('colors.neutral.300');
+	border-radius: 20px;
+	border: 2px solid theme('colors.neutral.100');
+}
+*::-webkit-scrollbar-thumb:hover {
+	background: theme('colors.neutral.400');
+}
+
+/* Dark mode scrollbars */
+.dark *::-webkit-scrollbar-track {
+	background: theme('colors.neutral.800');
+}
+.dark *::-webkit-scrollbar-thumb {
+	background: theme('colors.neutral.700');
+	border-color: theme('colors.neutral.800');
+}
+.dark *::-webkit-scrollbar-thumb:hover {
+	background: theme('colors.neutral.600');
+}
+
+/* Utility layers */
+@layer components {
+	.glass-panel {
+		background-color: rgba(255,255,255,0.6);
+		border: 1px solid #e5e7eb;
+		box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+		backdrop-filter: blur(8px);
+	}
+	.dark .glass-panel {
+		background-color: rgba(17,24,39,0.6);
+		border-color: #1f2937;
+	}
+	.section-heading {
+		font-size: 0.875rem;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: #374151;
+	}
+	.dark .section-heading { color: #e5e7eb; }
+	.gradient-accent {
+		background: linear-gradient(135deg, theme('colors.brand.500'), theme('colors.accent.500'));
+	}
+}
+
+@layer utilities {
+	.text-balance { text-wrap: balance; }
+	.no-scrollbar::-webkit-scrollbar { display: none; }
+	.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+/* Focus ring normalization */
+*:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px theme('colors.brand.400');
+}
+
+/* Transitions for theme change */
+html.dark body, html.light body, html.dark .transition-theme, html.light .transition-theme {
+	transition: background-color .3s ease, color .3s ease;
+}
+
+/* Dark mode overrides for legacy light backgrounds */
+.dark .bg-white { background-color: #1f2937 !important; }
+.dark .bg-white\/70 { background-color: rgba(31,41,55,0.7) !important; }
+.dark .bg-white\/80 { background-color: rgba(31,41,55,0.8) !important; }
+.dark .bg-white\/90 { background-color: rgba(31,41,55,0.9) !important; }
+.dark .bg-gray-50 { background-color: #111827 !important; }
+.dark .bg-gray-100 { background-color: #1f2937 !important; }
+.dark .bg-gray-200 { background-color: #374151 !important; }
+.dark .border { border-color: #374151 !important; }
+.dark .border-gray-200 { border-color: #374151 !important; }
+.dark .shadow-sm, .dark .shadow { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.6), 0 1px 2px -1px rgba(0,0,0,0.5) !important; }
+
+/* Dark text overrides */
+/* Semantic text color system */
+:root {
+	--color-text-primary: #1f2937;
+	--color-text-secondary: #4b5563;
+	--color-text-tertiary: #6b7280;
+	--color-text-muted: #9ca3af;
+	--color-text-invert: #f8fafc;
+	--color-border-subtle: #e5e7eb;
+}
+html.dark {
+	--color-text-primary: #f1f5f9;
+	--color-text-secondary: #e2e8f0;
+	--color-text-tertiary: #cbd5e1;
+	--color-text-muted: #94a3b8;
+	--color-text-invert: #0f172a;
+	--color-border-subtle: #374151;
+}
+
+.text-primary { color: var(--color-text-primary) !important; }
+.text-secondary { color: var(--color-text-secondary) !important; }
+.text-tertiary { color: var(--color-text-tertiary) !important; }
+.text-muted { color: var(--color-text-muted) !important; }
+.text-invert { color: var(--color-text-invert) !important; }
+
+/* Chart theming variables */
+:root {
+	--chart-axis: #6b7280;
+	--chart-grid: #e5e7eb;
+	--chart-line-a: #0ea5e9;
+	--chart-line-b: #6366f1;
+	--chart-bar: #6b7280;
+}
+html.dark {
+	--chart-axis: #cbd5e1;
+	--chart-grid: #374151;
+	--chart-line-a: #38bdf8;
+	--chart-line-b: #818cf8;
+	--chart-bar: #94a3b8;
+}
+
+.chart-surface { background: transparent; }
+.chart-axis text { fill: var(--chart-axis) !important; }
+.chart-bar rect { fill: var(--chart-bar); }
+.chart-grid line { stroke: var(--chart-grid) !important; }
+
+/* Map legacy grays to semantic for dark mode readability */
+.dark .text-gray-800, .dark .text-gray-700 { color: var(--color-text-primary) !important; }
+.dark .text-gray-600 { color: var(--color-text-secondary) !important; }
+.dark .text-gray-500 { color: var(--color-text-tertiary) !important; }
+.dark .text-gray-400, .dark .text-gray-300 { color: var(--color-text-muted) !important; }
+.dark .text-gray-200, .dark .text-gray-100 { color: var(--color-text-invert) !important; }

@@ -45,20 +45,18 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-800 via-gray-900 to-black flex items-center justify-center p-4">
+  <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-50 dark:bg-neutral-900 dark:bg-[radial-gradient(circle_at_40%_20%,#1f2937,transparent)] bg-[radial-gradient(circle_at_40%_20%,#f1f5f9,transparent)]">
       <div className="max-w-lg w-full space-y-8">
         <div className="text-center mb-12">
           <div className="flex justify-center items-center mb-6">
             <Sun className="h-8 w-8 text-yellow-400 mr-2 animate-pulse" />
             <Wind className="h-8 w-8 text-gray-300 animate-bounce" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4 min-h-[3rem]">
+          <h1 className="text-4xl font-bold text-primary mb-4 min-h-[3rem]">
             {displayText}
             <span className="animate-pulse">|</span>
           </h1>
-          <p className="text-gray-200 text-lg">
-            AI-Powered Mining Energy Optimization
-          </p>
+          <p className="text-secondary text-lg opacity-90">AI-Powered Mining Energy Optimization</p>
         </div>
 
         {!showAdminForm ? (
@@ -66,13 +64,13 @@ const LoginScreen: React.FC = () => {
             <button
               onClick={handleUserLogin}
               disabled={isLoading}
-              className="w-full bg-rose-50/95 backdrop-blur-sm rounded-xl p-6 hover:bg-rose-50 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50"
+              className="w-full rounded-xl p-6 transition-colors duration-200 shadow-soft disabled:opacity-50 bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/40 hover:bg-rose-100 dark:hover:bg-rose-500/30"
             >
               <div className="flex items-center justify-center mb-3">
                 <User className="h-8 w-8 text-rose-600 mr-3" />
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-gray-800">Operator Portal</h3>
-                  <p className="text-gray-600 text-sm">Direct machine control & execution</p>
+                  <h3 className="text-xl font-semibold text-primary">Operator Portal</h3>
+                  <p className="text-tertiary text-sm">Direct machine control & execution</p>
                 </div>
               </div>
             </button>
@@ -80,26 +78,26 @@ const LoginScreen: React.FC = () => {
             <button
               onClick={handleAdminClick}
               disabled={isLoading}
-              className="w-full bg-slate-50/95 backdrop-blur-sm rounded-xl p-6 hover:bg-slate-50 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50"
+              className="w-full rounded-xl p-6 transition-colors duration-200 shadow-soft disabled:opacity-50 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-700"
             >
               <div className="flex items-center justify-center mb-3">
                 <Shield className="h-8 w-8 text-indigo-600 mr-3" />
                 <div className="text-left">
-                  <h3 className="text-xl font-semibold text-slate-800">Mining Engineer Dashboard</h3>
-                  <p className="text-slate-600 text-sm">AI Intelligence & Advanced Analytics</p>
+                  <h3 className="text-xl font-semibold text-primary">Mining Engineer Dashboard</h3>
+                  <p className="text-tertiary text-sm">AI Intelligence & Advanced Analytics</p>
                 </div>
               </div>
             </button>
           </div>
         ) : (
-          <div className="bg-slate-50/95 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+          <div className="rounded-xl p-6 shadow-soft bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
             <div className="flex items-center mb-4">
               <CreditCard className="h-6 w-6 text-indigo-600 mr-2" />
-              <h3 className="text-lg font-semibold text-slate-800">Mining Engineer Login</h3>
+              <h3 className="text-lg font-semibold text-primary">Mining Engineer Login</h3>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-secondary mb-2">
                   Engineer ID (Advanced Analytics Access)
                 </label>
                 <input
@@ -107,7 +105,7 @@ const LoginScreen: React.FC = () => {
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
                   placeholder="Enter your Engineer ID"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
 
               </div>
@@ -115,13 +113,13 @@ const LoginScreen: React.FC = () => {
                 <button
                   onClick={handleAdminLogin}
                   disabled={isLoading || !employeeId}
-                  className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-500 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-indigo-400"
                 >
                   Login
                 </button>
                 <button
                   onClick={() => setShowAdminForm(false)}
-                  className="flex-1 bg-slate-500 text-white py-2 px-4 rounded-lg hover:bg-slate-600"
+                  className="flex-1 bg-neutral-500 text-white py-2 px-4 rounded-lg hover:bg-neutral-600 focus-visible:ring-2 focus-visible:ring-neutral-400"
                 >
                   Back
                 </button>
@@ -133,7 +131,7 @@ const LoginScreen: React.FC = () => {
         {isLoading && (
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-            <p className="text-white">{showAdminForm ? 'Verifying credentials...' : 'Setting up demo user...'}</p>
+            <p className="text-secondary">{showAdminForm ? 'Verifying credentials...' : 'Setting up demo user...'}</p>
           </div>
         )}
       </div>

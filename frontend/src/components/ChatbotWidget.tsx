@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Bot, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { chatWithGemini, type ChatMessage } from '../api/gemini';
 
 interface Message {
   id: string;
@@ -69,7 +70,7 @@ const ChatbotWidget: React.FC = () => {
   const getSmartResponse = (userMessage: string): string => {
     const lowerMessage = userMessage.toLowerCase();
     
-    for (const [category, data] of Object.entries(smartResponses)) {
+  for (const [, data] of Object.entries(smartResponses)) {
       if (data.keywords.some(keyword => lowerMessage.includes(keyword))) {
         return data.response;
       }
@@ -101,18 +102,34 @@ const ChatbotWidget: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate typing delay
-    setTimeout(() => {
+    try {
+      // Try backend AI chat first
+      const history: ChatMessage[] = messages.map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+      const aiText = await chatWithGemini([...history, { role: 'user', content: inputText }], {
+        system: 'You are an AI Mining Assistant. Be concise, actionable and mining-domain aware.',
+      });
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        text: aiText,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, botResponse]);
+    } catch (e) {
+      // Fallback to local smartResponses
       const botResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: getSmartResponse(inputText),
         sender: 'bot',
         timestamp: new Date()
       };
-      
       setMessages(prev => [...prev, botResponse]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

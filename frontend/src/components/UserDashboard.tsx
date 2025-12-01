@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEnergy } from '../contexts/EnergyProvider';
 import { useUser } from '../contexts/UserProvider';
 import { 
-  Home, Activity, AlertTriangle, User, LogOut, MessageCircle, Trophy, Map,
+  Home, Activity, AlertTriangle, User, LogOut, MessageCircle,
   Sun, Wind, Battery, Zap, Phone, Award, Plus, Clock, Eye
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -71,24 +71,34 @@ const UserDashboard: React.FC = () => {
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Points Widget */}
-      <div className="bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl p-6 text-white">
+      <div className="relative overflow-hidden rounded-xl p-6 bg-neutral-50 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-800 shadow-soft">
+        <div className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-40 bg-[radial-gradient(circle_at_75%_25%,rgba(56,130,246,0.15),transparent_60%)]" />
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-semibold">Plant Status</h3>
-            <p className="text-3xl font-bold">{renewablePercentage}%</p>
-            <p className="text-gray-100">Operational Efficiency: {userData.points}%</p>
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-neutral-800 dark:text-neutral-100 tracking-wide">Plant Status</h3>
+            <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{renewablePercentage}%</p>
+            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Operational Efficiency: {userData.points}%</p>
           </div>
-          <div className="relative w-20 h-20">
-            <svg className="w-20 h-20 transform -rotate-90">
-              <circle cx="40" cy="40" r="30" stroke="rgba(255,255,255,0.3)" strokeWidth="6" fill="none" />
+          <div className="relative w-24 h-24">
+            <svg className="w-24 h-24 -rotate-90" aria-label="Renewable Percentage Gauge">
+              <circle cx="48" cy="48" r="36" stroke="rgba(0,0,0,0.08)" className="dark:stroke-[rgba(255,255,255,0.12)]" strokeWidth="6" fill="none" />
               <circle 
-                cx="40" cy="40" r="30" 
-                stroke="white" strokeWidth="6" fill="none"
-                strokeDasharray={`${renewablePercentage * 1.88} 188`}
+                cx="48" cy="48" r="36"
+                stroke="url(#statusGradient)" strokeWidth="6" fill="none"
+                strokeLinecap="round"
+                strokeDasharray={`${renewablePercentage * 2.26} 226`}
               />
+              <defs>
+                <linearGradient id="statusGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#1d4ed8" />
+                </linearGradient>
+              </defs>
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <Sun className="h-6 w-6 text-yellow-300 animate-pulse" />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-white/80 dark:bg-neutral-800/70 backdrop-blur shadow-inner ring-1 ring-neutral-200 dark:ring-neutral-700">
+                <Sun className="h-6 w-6 text-yellow-500" />
+              </div>
             </div>
           </div>
         </div>
@@ -96,7 +106,7 @@ const UserDashboard: React.FC = () => {
 
       {/* Energy Flow */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-orange-100 rounded-xl p-4 shadow-sm border border-orange-200">
+  <div className="rounded-xl p-4 shadow-subtle border border-orange-200 bg-orange-50 dark:bg-orange-500/15">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Crusher Load</p>
@@ -105,7 +115,7 @@ const UserDashboard: React.FC = () => {
             <Sun className="h-8 w-8 text-orange-600" />
           </div>
         </div>
-        <div className="bg-blue-100 rounded-xl p-4 shadow-sm border border-blue-200">
+  <div className="rounded-xl p-4 shadow-subtle border border-blue-200 bg-blue-50 dark:bg-blue-500/15">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Mill RPM</p>
@@ -114,7 +124,7 @@ const UserDashboard: React.FC = () => {
             <Wind className="h-8 w-8 text-blue-600" />
           </div>
         </div>
-        <div className="bg-gray-200 rounded-xl p-4 shadow-sm border border-gray-300">
+  <div className="rounded-xl p-4 shadow-subtle border border-gray-300 bg-neutral-100 dark:bg-neutral-700">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Feed Rate</p>
@@ -126,7 +136,7 @@ const UserDashboard: React.FC = () => {
       </div>
 
       {/* Battery Gauge */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
+  <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Machine Status</h3>
         <div className="flex items-center space-x-4">
           <Battery className="h-8 w-8 text-gray-600" />
@@ -146,7 +156,7 @@ const UserDashboard: React.FC = () => {
       </div>
 
       {/* 24h Demand Graph */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
+  <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Throughput Trend</h3>
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={demandData}>
