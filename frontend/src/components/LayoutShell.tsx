@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, Trophy, Map, LogOut, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 // Simple dark mode toggler using a class on <html>
@@ -18,8 +18,7 @@ function useColorMode() {
 
 const navigation = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-  { to: '/map', label: 'Map', icon: Map },
+  
   { to: '/chatbot', label: 'Chatbot', icon: MessageCircle },
 ];
 

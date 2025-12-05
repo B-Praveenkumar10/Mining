@@ -1,6 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Globe, Volume2 } from 'lucide-react';
 
+// Type declarations for Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+interface SpeechRecognitionEvent {
+  results: {
+    [key: number]: {
+      [key: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
 interface VoiceControlProps {
   onEnergyModeChange: (mode: string) => void;
   currentMode: string;
@@ -11,7 +33,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
   const [transcript, setTranscript] = useState('');
   const [language, setLanguage] = useState('en-US');
   const [isProcessing, setIsProcessing] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const languages = [
     { code: 'en-US', name: 'English', flag: '🇺🇸' },
@@ -49,7 +71,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
       recognitionRef.current.interimResults = false;
       recognitionRef.current.lang = language;
 
-      recognitionRef.current.onresult = (event) => {
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         const result = event.results[0][0].transcript.toLowerCase();
         setTranscript(result);
         processVoiceCommand(result);
@@ -59,7 +81,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
         setIsListening(false);
       };
 
-      recognitionRef.current.onerror = (event) => {
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
       };
@@ -80,21 +102,12 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
       }
     }
 
-    // If no local match, use Gemini API
+    // If no local match, fallback to simple processing
     try {
-      const { processVoiceCommandWithGemini } = await import('../api/gemini');
-      const result = await processVoiceCommandWithGemini({
-        command,
-        language,
-        currentMode,
-        availableModes: ['solar', 'wind', 'solar+wind', 'solar+wind+grid', 'grid']
-      });
-      
-      if (result.mode && result.confidence > 0.5) {
-        onEnergyModeChange(result.mode);
-      }
+      // Simple fallback processing without external API
+      console.log('Processing command:', command);
     } catch (error) {
-      console.error('Gemini API error:', error);
+      console.error('Processing error:', error);
     }
     
     setIsProcessing(false);
@@ -125,9 +138,9 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border">
+    <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Voice Control</h3>
+        <h3 className="text-lg font-semibold text-gray-800">Voice Control</h3>
         <div className="flex items-center space-x-2">
           <Globe className="h-4 w-4 text-gray-500" />
           <select
@@ -154,7 +167,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
                 ? 'bg-red-500 text-white animate-pulse'
                 : isProcessing
                 ? 'bg-yellow-500 text-white'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
+                : 'bg-gray-600 text-white hover:bg-gray-700'
             }`}
           >
             {isListening ? (
@@ -170,7 +183,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
             {isListening ? 'Listening...' : isProcessing ? 'Processing...' : 'Click to speak'}
           </p>
           {transcript && (
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className="bg-gray-100 rounded-lg p-3">
               <p className="text-sm font-medium text-gray-800">"{transcript}"</p>
             </div>
           )}
@@ -197,7 +210,7 @@ const VoiceControl: React.FC<VoiceControlProps> = ({ onEnergyModeChange, current
 
         <button
           onClick={() => speakResponse(`Current mode is ${currentMode}`)}
-          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          className="w-full flex items-center justify-center space-x-2 py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
         >
           <Volume2 className="h-4 w-4" />
           <span>Speak Current Mode</span>

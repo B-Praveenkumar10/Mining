@@ -1,9 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { EnergyProvider } from './contexts/EnergyProvider';
-import { UserProvider } from './contexts/UserProvider';
-import { AdminProvider } from './contexts/AdminProvider';
+import { MachineProvider } from './contexts/MachineProvider';
 import LoginScreen from './components/LoginScreen';
 import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
@@ -11,8 +9,6 @@ import LayoutShell from './components/LayoutShell';
 import AdminUserLogs from './components/AdminUserLogs';
 import WhatsAppIntegration from './components/WhatsAppIntegration';
 import ChatbotWidget from './components/ChatbotWidget';
-import PointsLeaderboard from './components/PointsLeaderboard';
-import EnergyMap from './components/EnergyMap';
 import DigitalTwin from './components/DigitalTwin';
 
 const AppContent: React.FC = () => {
@@ -45,8 +41,6 @@ const AppContent: React.FC = () => {
         <Route path="/admin/user-logs" element={<AdminUserLogs />} />
         <Route path="/whatsapp" element={<WhatsAppIntegration />} />
         <Route path="/chatbot" element={<ChatbotWidget />} />
-        <Route path="/leaderboard" element={<PointsLeaderboard />} />
-        <Route path="/map" element={<EnergyMap />} />
         <Route path="/digital-twin" element={<DigitalTwin />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -57,15 +51,11 @@ const AppContent: React.FC = () => {
 function App() {
   return (
     <AuthProvider>
-      <EnergyProvider>
-        <UserProvider>
-          <AdminProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </AdminProvider>
-        </UserProvider>
-      </EnergyProvider>
+      <MachineProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </MachineProvider>
     </AuthProvider>
   );
 }

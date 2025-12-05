@@ -3,7 +3,7 @@ import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -31,42 +31,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock authentication logic
-    let mockUser: User;
-    
-    if (email.includes('admin')) {
-      mockUser = {
-        id: '2',
-        email,
-        role: 'admin',
-        name: 'Admin User',
-        campus: 'System Admin'
-      };
-    } else {
-      mockUser = {
-        id: '1',
-        email,
-        role: 'user',
-        name: 'Praveen Kumar',
-        campus: 'Main Campus'
-      };
+    try {
+      const response = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const user: User = {
+          id: data.user.username,
+          email: data.user.email,
+          role: data.user.role === 'engineer' ? 'admin' : 'user',
+          name: data.user.name,
+          campus: 'Mining Plant'
+        };
+        
+        setUser(user);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('token', data.token);
+        setIsLoading(false);
+        return true;
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Login failed');
+        setIsLoading(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        alert('Cannot connect to backend. Make sure backend is running on http://localhost:8000');
+      } else {
+        alert(`Connection error: ${error.message}`);
+      }
+      setIsLoading(false);
+      return false;
     }
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-    setIsLoading(false);
-    return true;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (

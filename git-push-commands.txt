@@ -1,0 +1,20 @@
+# Git Commands to Push Clean Code
+
+# 1. Check current status
+git status
+
+# 2. Add all changes
+git add .
+
+# 3. Commit with descriptive message
+git commit -m "Clean production build: Atlas integration, removed test files, cleaned code"
+
+# 4. Push to main branch
+git push origin main
+
+# Alternative: If you want to push to a new branch
+git checkout -b production-clean
+git push origin production-clean
+
+# If you need to set upstream
+git push --set-upstream origin main

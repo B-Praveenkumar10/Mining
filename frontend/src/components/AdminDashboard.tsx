@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useAdmin } from '../contexts/AdminProvider';
+import { useMachine } from '../contexts/MachineProvider';
+import { api } from '../services/api';
 import { 
-  Settings, BarChart3, AlertTriangle, Map, LogOut, MessageCircle, Users,
-  Sun, Wind, Zap, CheckCircle, XCircle, Clock, TrendingUp, Eye
+  Settings, BarChart3, AlertTriangle, Brain, LogOut, MessageCircle, Users,
+  Sun, Wind, Zap, CheckCircle, XCircle, Clock, Eye, Monitor
 } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Button } from './ui/Button';
@@ -16,11 +17,73 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('control');
   const [syncProgress, setSyncProgress] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { logout } = useAuth();
-  const { 
-    energyMode, setEnergyMode, mlAutoMode, setMlAutoMode, 
-    systemStatus, priorityRequests, regionalData, updateRequestStatus 
-  } = useAdmin();
+  const [showMachineStatus, setShowMachineStatus] = useState(false);
+  const { logout, user } = useAuth();
+  const { machines, loading } = useMachine();
+  const [energyMode, setEnergyMode] = useState('AI Auto Mode');
+  const [mlAutoMode, setMlAutoMode] = useState(true);
+  const [systemStatus, setSystemStatus] = useState({
+    'Crusher': true,
+    'Mill': true,
+    'Conveyor': true,
+    'AI System': true
+  });
+  const [priorityRequests, setPriorityRequests] = useState([]);
+  const [regionalData, setRegionalData] = useState([]);
+  
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const [overview, alerts] = await Promise.all([
+          api.getAnalyticsOverview(),
+          api.getAnalyticsAlerts()
+        ]);
+        
+        if (overview.machines.length > 0) {
+          const machineData = overview.machines.map(machine => ({
+            region: machine.name,
+            usage: Math.round(machine.efficiency),
+            trend: machine.efficiency > 80 ? '+5%' : machine.efficiency > 70 ? '+2%' : '-3%'
+          }));
+          setRegionalData(machineData);
+          
+          // Update system status based on machine status
+          const newSystemStatus = {
+            'Crusher': overview.machines.find(m => m.machine_id === 'machine-01')?.status === 'running',
+            'Mill': overview.machines.find(m => m.machine_id === 'machine-02')?.status === 'running',
+            'Conveyor': overview.machines.find(m => m.machine_id === 'machine-03')?.status === 'running',
+            'AI System': overview.summary.running_machines > 0
+          };
+          setSystemStatus(newSystemStatus);
+          
+          // Convert alerts to priority requests
+          const requests = alerts.alerts.slice(0, 5).map((alert: any, index: number) => ({
+            id: alert._id || index,
+            facility: `Machine ${alert.machine_id?.split('-')[1] || '1'}`,
+            priority: alert.severity === 'critical' ? 'Critical' : 
+                     alert.severity === 'high' ? 'High' : 
+                     alert.severity === 'medium' ? 'Medium' : 'Low',
+            reason: alert.message,
+            status: 'Pending',
+            timestamp: alert.created_at
+          }));
+          setPriorityRequests(requests);
+        }
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error);
+      }
+    };
+    
+    fetchAdminData();
+    const interval = setInterval(fetchAdminData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const updateRequestStatus = (id: number, status: string) => {
+    setPriorityRequests(prev => 
+      prev.map(req => req.id === id ? { ...req, status } : req)
+    );
+  };
   const navigate = useNavigate();
 
   const energyModes = ['Crusher Only', 'Mill Only', 'Crusher+Mill', 'Full Circuit', 'AI Auto Mode'];
@@ -136,33 +199,7 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Regional Leaderboard */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Circuit Performance Ranking</h3>
-        <div className="space-y-3">
-          {regionalData
-            .sort((a, b) => b.usage - a.usage)
-            .map((region, index) => (
-              <div key={region.region} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                    index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-500' : 'bg-blue-500'
-                  }`}>
-                    {index + 1}
-                  </div>
-                  <span className="font-medium text-gray-800">{region.region}</span>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <span className="text-lg font-bold text-blue-600">{region.usage}%</span>
-                  <div className="flex items-center space-x-1">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">{region.trend}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
+
 
       {/* Usage Trends */}
       <div className="bg-white rounded-xl p-6 shadow-sm border">
@@ -368,6 +405,13 @@ const AdminDashboard: React.FC = () => {
             <h1 className="text-xl font-semibold text-primary">Mining Engineer Dashboard</h1>
             <div className="flex items-center space-x-4">
               <button
+                onClick={() => setShowMachineStatus(!showMachineStatus)}
+                className="p-2 text-secondary hover:text-primary"
+                title="Machine Status"
+              >
+                <Monitor className="h-5 w-5" />
+              </button>
+              <button
                 onClick={() => navigate('/admin/user-logs')}
                 className="p-2 text-secondary hover:text-primary"
                 title="User Logs"
@@ -398,7 +442,76 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
+        {/* Machine Status Side Panel - Toggleable */}
+        {showMachineStatus && (
+          <div className="w-80 bg-white shadow-lg border rounded-lg p-4">
+            <h3 className="text-sm font-semibold mb-3 flex items-center">
+              <Monitor className="h-4 w-4 mr-2" />
+              Live Machine Records
+            </h3>
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 mx-auto"></div>
+                <p className="text-xs text-gray-600 mt-2">Loading...</p>
+              </div>
+            ) : (
+            <div className="space-y-3">
+              {machines.map((machine) => (
+                <div key={machine.id} className="p-3 bg-gray-50 rounded border">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">{machine.name}</span>
+                    <div className={`w-2 h-2 rounded-full ${
+                      machine.status === 'running' ? 'bg-green-500' :
+                      machine.status === 'maintenance' ? 'bg-yellow-500' : 'bg-red-500'
+                    }`} />
+                  </div>
+                  <div className="space-y-1 text-xs">
+                    <div>
+                      <span className="text-gray-500">Throughput:</span>
+                      <span className="font-medium ml-1">{machine.throughput} t/h</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Power:</span>
+                      <span className="font-medium ml-1">{machine.powerDraw} MW</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Efficiency:</span>
+                      <span className="font-medium ml-1">{machine.efficiency}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Temperature:</span>
+                      <span className="font-medium ml-1">{machine.temperature}°C</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Vibration:</span>
+                      <span className="font-medium ml-1">{machine.vibration} mm/s</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Op. Hours:</span>
+                      <span className="font-medium ml-1">{machine.operatingHours}h</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Last Maint:</span>
+                      <span className="font-medium ml-1">{machine.lastMaintenance}</span>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200">
+                      <span className="text-gray-500">Status:</span>
+                      <span className={`font-medium ml-1 capitalize ${
+                        machine.status === 'running' ? 'text-green-600' :
+                        machine.status === 'maintenance' ? 'text-yellow-600' : 'text-red-600'
+                      }`}>{machine.status}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1">
         {/* Tab Navigation */}
   <div className="rounded-xl shadow-sm border border-gray-200 dark:border-neutral-700 mb-6 bg-gray-50 dark:bg-neutral-800">
           <div className="flex">
@@ -406,7 +519,7 @@ const AdminDashboard: React.FC = () => {
               { id: 'control', label: 'AI Control', icon: Settings },
               { id: 'analytics', label: 'Machine Data', icon: BarChart3 },
               { id: 'priority', label: 'Monitoring & Alerts', icon: AlertTriangle },
-              { id: 'map', label: 'ML Predictions', icon: Map }
+              { id: 'map', label: 'ML Predictions', icon: Brain }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -430,6 +543,7 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'analytics' && renderAnalytics()}
           {activeTab === 'priority' && renderPriorityManagement()}
           {activeTab === 'map' && renderMap()}
+        </div>
         </div>
       </div>
     </div>

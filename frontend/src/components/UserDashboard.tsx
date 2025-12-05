@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useEnergy } from '../contexts/EnergyProvider';
-import { useUser } from '../contexts/UserProvider';
+import { useMachine } from '../contexts/MachineProvider';
+import { api } from '../services/api';
 import { 
   Home, Activity, AlertTriangle, User, LogOut, MessageCircle,
-  Sun, Wind, Battery, Zap, Phone, Award, Plus, Clock, Eye
+  Sun, Wind, Battery, Zap, Phone, Award, Plus, Clock, Eye, Play, Square, Cog
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
@@ -12,22 +12,72 @@ import { useNavigate } from 'react-router-dom';
 const UserDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showRequestDialog, setShowRequestDialog] = useState(false);
-  const { logout } = useAuth();
-  const { energyData, renewablePercentage, alerts } = useEnergy();
-  const { userData } = useUser();
+  const [showMachineControls, setShowMachineControls] = useState(false);
+  const { logout, user } = useAuth();
+  const { machines, loading, startMachine, stopMachine } = useMachine();
+  const [dashboardData, setDashboardData] = useState({
+    efficiency: 0,
+    totalPower: 0,
+    totalThroughput: 0,
+    operationalStatus: 0,
+    runningMachines: 0
+  });
+  const [trendsData, setTrendsData] = useState<any[]>([]);
+  const [breakdownData, setBreakdownData] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const [overview, trends, breakdown, alertsData] = await Promise.all([
+          api.getAnalyticsOverview(),
+          api.getAnalyticsTrends(),
+          api.getAnalyticsBreakdown(),
+          api.getAnalyticsAlerts()
+        ]);
+        
+        setDashboardData({
+          efficiency: overview.summary.avg_efficiency,
+          totalPower: overview.summary.total_power_kw,
+          totalThroughput: overview.summary.total_throughput,
+          operationalStatus: overview.summary.operational_status,
+          runningMachines: overview.summary.running_machines
+        });
+        
+        // Combine all machine trends for chart
+        const combinedTrends = [];
+        for (let i = 0; i < 24; i++) {
+          let totalPower = 0;
+          let totalThroughput = 0;
+          trends.trends.forEach((machine: any) => {
+            if (machine.hourly_data[i]) {
+              totalPower += machine.hourly_data[i].power;
+              totalThroughput += machine.hourly_data[i].throughput;
+            }
+          });
+          combinedTrends.push({
+            hour: i,
+            demand: totalThroughput,
+            renewable: totalPower * 10 // Scale for visibility
+          });
+        }
+        setTrendsData(combinedTrends);
+        
+        setBreakdownData(breakdown.breakdown);
+        setAlerts(alertsData.alerts.map((alert: any) => alert.message));
+        
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+    
+    fetchAllData();
+    const interval = setInterval(fetchAllData, 30000);
+    return () => clearInterval(interval);
+  }, []);
   const navigate = useNavigate();
 
-  const demandData = Array.from({ length: 24 }, (_, i) => ({
-    hour: i,
-    demand: 20 + Math.sin(i * 0.3) * 10 + Math.random() * 5,
-    renewable: 15 + Math.sin(i * 0.2) * 8 + Math.random() * 3
-  }));
 
-  const renewableBreakdown = [
-    { name: 'Crusher Circuit', value: 45.2, color: '#f59e0b' },
-    { name: 'Mill Circuit', value: 33.3, color: '#3b82f6' },
-    { name: 'Conveyor System', value: 21.5, color: '#10b981' }
-  ];
 
   const subsidyInfo = [
     { type: 'AI Process Control', amount: '₹2,50,000 per circuit', subsidy: '35% energy savings' },
@@ -76,8 +126,8 @@ const UserDashboard: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-neutral-800 dark:text-neutral-100 tracking-wide">Plant Status</h3>
-            <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{renewablePercentage}%</p>
-            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Operational Efficiency: {userData.points}%</p>
+            <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{dashboardData.operationalStatus}%</p>
+            <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Plant Operational Status: {dashboardData.runningMachines}/3 machines running</p>
           </div>
           <div className="relative w-24 h-24">
             <svg className="w-24 h-24 -rotate-90" aria-label="Renewable Percentage Gauge">
@@ -86,7 +136,7 @@ const UserDashboard: React.FC = () => {
                 cx="48" cy="48" r="36"
                 stroke="url(#statusGradient)" strokeWidth="6" fill="none"
                 strokeLinecap="round"
-                strokeDasharray={`${renewablePercentage * 2.26} 226`}
+                strokeDasharray={`${dashboardData.operationalStatus * 2.26} 226`}
               />
               <defs>
                 <linearGradient id="statusGradient" x1="0" y1="0" x2="1" y2="1">
@@ -110,7 +160,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Crusher Load</p>
-              <p className="text-2xl font-bold text-orange-700">{energyData.solar.toFixed(1)}%</p>
+              <p className="text-2xl font-bold text-orange-700">{dashboardData.totalPower.toFixed(1)} kW</p>
             </div>
             <Sun className="h-8 w-8 text-orange-600" />
           </div>
@@ -118,8 +168,8 @@ const UserDashboard: React.FC = () => {
   <div className="rounded-xl p-4 shadow-subtle border border-blue-200 bg-blue-50 dark:bg-blue-500/15">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-600 text-sm">Mill RPM</p>
-              <p className="text-2xl font-bold text-blue-700">{energyData.wind.toFixed(0)} RPM</p>
+              <p className="text-gray-600 text-sm">Avg Efficiency</p>
+              <p className="text-2xl font-bold text-blue-700">{dashboardData.efficiency}%</p>
             </div>
             <Wind className="h-8 w-8 text-blue-600" />
           </div>
@@ -128,7 +178,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Feed Rate</p>
-              <p className="text-2xl font-bold text-gray-700">{energyData.grid.toFixed(1)} t/h</p>
+              <p className="text-2xl font-bold text-gray-700">{dashboardData.totalThroughput.toFixed(1)} t/h</p>
             </div>
             <Zap className="h-8 w-8 text-gray-600" />
           </div>
@@ -142,13 +192,13 @@ const UserDashboard: React.FC = () => {
           <Battery className="h-8 w-8 text-gray-600" />
           <div className="flex-1">
             <div className="flex justify-between mb-2">
-              <span>Efficiency: {energyData.battery.level}%</span>
-              <span>Health: {energyData.battery.health.toFixed(1)}%</span>
+              <span>Efficiency: {dashboardData.efficiency}%</span>
+              <span>Status: {dashboardData.operationalStatus}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div 
                 className="bg-gray-600 h-3 rounded-full transition-all duration-300"
-                style={{ width: `${energyData.battery.level}%` }}
+                style={{ width: `${dashboardData.efficiency}%` }}
               />
             </div>
           </div>
@@ -159,7 +209,7 @@ const UserDashboard: React.FC = () => {
   <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
         <h3 className="text-lg font-semibold mb-4 text-gray-800">Throughput Trend</h3>
         <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={demandData}>
+          <LineChart data={trendsData}>
             <XAxis dataKey="hour" />
             <YAxis />
             <Line type="monotone" dataKey="demand" stroke="#374151" strokeWidth={2} />
@@ -195,12 +245,12 @@ const UserDashboard: React.FC = () => {
           <div className="flex-1">
             <div className="flex justify-between mb-2">
               <span className="text-gray-700">Energy Efficiency</span>
-              <span className="font-bold text-gray-800">{userData.renewableUsage}%</span>
+              <span className="font-bold text-gray-800">{dashboardData.efficiency}%</span>
             </div>
             <div className="w-full bg-gray-300 rounded-full h-4">
               <div 
                 className="bg-gradient-to-r from-gray-600 to-gray-800 h-4 rounded-full transition-all duration-300"
-                style={{ width: `${userData.renewableUsage}%` }}
+                style={{ width: `${dashboardData.efficiency}%` }}
               />
             </div>
           </div>
@@ -214,14 +264,14 @@ const UserDashboard: React.FC = () => {
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
-                data={renewableBreakdown}
+                data={breakdownData}
                 cx="50%"
                 cy="50%"
                 innerRadius={60}
                 outerRadius={100}
                 dataKey="value"
               >
-                {renewableBreakdown.map((entry, index) => (
+                {breakdownData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
@@ -229,13 +279,13 @@ const UserDashboard: React.FC = () => {
           </ResponsiveContainer>
         </div>
         <div className="grid grid-cols-3 gap-4 mt-4">
-          {renewableBreakdown.map((item, index) => (
+          {breakdownData.map((item, index) => (
             <div key={index} className="text-center">
               <div className="flex items-center justify-center mb-2">
                 <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: item.color }} />
                 <span className="text-sm font-medium">{item.name}</span>
               </div>
-              <p className="text-lg font-bold">{item.value}%</p>
+              <p className="text-lg font-bold">{item.value.toFixed(1)}%</p>
             </div>
           ))}
         </div>
@@ -382,25 +432,25 @@ const UserDashboard: React.FC = () => {
       <div className="bg-white rounded-xl p-6 shadow-sm border text-center">
         <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <span className="text-2xl font-bold text-white">
-            {userData.name.split(' ').map(n => n[0]).join('')}
+            {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('') : 'OP'}
           </span>
         </div>
-        <h3 className="text-xl font-semibold text-gray-800">{userData.name}</h3>
-        <p className="text-gray-600">{userData.region}</p>
+        <h3 className="text-xl font-semibold text-gray-800">{user?.name || 'Operator'}</h3>
+        <p className="text-gray-600">{user?.campus || 'Mining Plant'}</p>
       </div>
 
       {/* Statistics */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border text-center">
-          <p className="text-2xl font-bold text-green-600">{userData.points}</p>
+          <p className="text-2xl font-bold text-green-600">{dashboardData.efficiency}</p>
           <p className="text-gray-600 text-sm">Points</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border text-center">
-          <p className="text-2xl font-bold text-blue-600">#{userData.rank}</p>
+          <p className="text-2xl font-bold text-blue-600">#1</p>
           <p className="text-gray-600 text-sm">Rank</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border text-center">
-          <p className="text-2xl font-bold text-orange-600">{userData.renewableUsage}%</p>
+          <p className="text-2xl font-bold text-orange-600">{dashboardData.efficiency}%</p>
           <p className="text-gray-600 text-sm">Usage</p>
         </div>
       </div>
@@ -409,7 +459,7 @@ const UserDashboard: React.FC = () => {
       <div className="bg-white rounded-xl p-6 shadow-sm border">
         <h3 className="text-lg font-semibold mb-4">Achievement Badges</h3>
         <div className="grid grid-cols-2 gap-4">
-          {userData.badges.map((badge, index) => (
+          {['Efficiency Expert', 'Safety Champion', 'Process Optimizer', 'Team Leader'].map((badge: string, index: number) => (
             <div key={index} className="flex items-center space-x-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
               <Award className="h-6 w-6 text-yellow-600" />
               <span className="font-medium text-gray-800">{badge}</span>
@@ -428,6 +478,13 @@ const UserDashboard: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <h1 className="text-xl font-semibold text-gray-800">Operator Dashboard</h1>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowMachineControls(!showMachineControls)}
+                className="p-2 text-gray-600 hover:text-gray-800"
+                title="Machine Controls"
+              >
+                <Cog className="h-5 w-5" />
+              </button>
               <button
                 onClick={() => navigate('/chatbot')}
                 className="p-2 text-gray-600 hover:text-gray-800"
@@ -452,7 +509,90 @@ const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
+        {/* Machine Control Left Panel - Toggleable */}
+        {showMachineControls && (
+          <div className="w-80 bg-gray-50 shadow-sm border rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800">Machine Controls</h3>
+            {loading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading machines...</p>
+              </div>
+            ) : (
+            <div className="space-y-4">
+              {machines.map((machine) => (
+                <div key={machine.id} className="p-4 bg-white rounded-lg border">
+                  <h4 className="font-semibold text-gray-800 mb-3">{machine.name}</h4>
+                  
+                  {/* Control Bar with Start/Stop buttons */}
+                  <div className="flex items-center space-x-3 mb-3">
+                    <button
+                      onClick={() => startMachine(machine.id)}
+                      disabled={machine.status === 'running'}
+                      className="p-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Play className="h-4 w-4" />
+                    </button>
+                    
+                    {/* Status Bar */}
+                    <div className="flex-1 h-8 rounded-full border-2 border-gray-300 overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${
+                          machine.status === 'running' ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
+                        style={{ width: machine.status === 'running' ? '100%' : '0%' }}
+                      />
+                    </div>
+                    
+                    <button
+                      onClick={() => stopMachine(machine.id)}
+                      disabled={machine.status === 'stopped'}
+                      className="p-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Square className="h-4 w-4" />
+                    </button>
+                  </div>
+                  
+                  {/* Machine Data */}
+                  <div className="space-y-1 text-sm">
+                    <div>
+                      <span className="text-gray-500">Throughput:</span>
+                      <span className="font-medium ml-1">{machine.throughput} t/h</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Power:</span>
+                      <span className="font-medium ml-1">{machine.powerDraw} MW</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Efficiency:</span>
+                      <span className="font-medium ml-1">{machine.efficiency}%</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Temperature:</span>
+                      <span className="font-medium ml-1">{machine.temperature}°C</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Vibration:</span>
+                      <span className="font-medium ml-1">{machine.vibration} mm/s</span>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200">
+                      <span className="text-gray-500">Status:</span>
+                      <span className={`font-medium ml-1 capitalize ${
+                        machine.status === 'running' ? 'text-green-600' :
+                        machine.status === 'maintenance' ? 'text-yellow-600' : 'text-red-600'
+                      }`}>{machine.status}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            )}
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1">
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="mb-6 space-y-2">
@@ -496,6 +636,7 @@ const UserDashboard: React.FC = () => {
           {activeTab === 'usage' && renderUsage()}
           {activeTab === 'priority' && renderPriority()}
           {activeTab === 'profile' && renderProfile()}
+        </div>
         </div>
       </div>
     </div>

@@ -1,82 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Search, Filter, Eye, Phone, CreditCard, MapPin, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../services/api';
 
 interface UserLog {
-  id: string;
-  timestamp: Date;
-  phoneNumber: string;
-  aadharNumber: string;
-  photoPath: string;
-  status: 'Online' | 'Offline';
+  _id: string;
+  username: string;
   name: string;
-  location: string;
+  email: string;
+  role: string;
+  last_login?: Date;
+  created_at: Date;
+  is_active: boolean;
 }
 
 const AdminUserLogs: React.FC = () => {
   const [userLogs, setUserLogs] = useState<UserLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Simulate loading user logs (replace with actual AdminProvider data)
-    const logs: UserLog[] = [
-      {
-        id: '1',
-        timestamp: new Date(Date.now() - 5 * 60 * 1000),
-        phoneNumber: '+91 98765 43210',
-        aadharNumber: 'XXXX XXXX 9012',
-        photoPath: 'assets/images/Praveen.png',
-        status: 'Online',
-        name: 'Praveen',
-        location: 'Jaipur',
-      },
-      {
-        id: '2',
-        timestamp: new Date(Date.now() - 12 * 60 * 1000),
-        phoneNumber: '+91 87654 32109',
-        aadharNumber: 'XXXX XXXX 0123',
-        photoPath: 'assets/images/Kiran.jpg',
-        status: 'Offline',
-        name: 'Kiran',
-        location: 'Udaipur',
-      },
-      {
-        id: '3',
-        timestamp: new Date(Date.now() - 25 * 60 * 1000),
-        phoneNumber: '+91 76543 21098',
-        aadharNumber: 'XXXX XXXX 1234',
-        photoPath: 'assets/images/BhalaHarini.jpeg',
-        status: 'Offline',
-        name: 'Bhala Harini',
-        location: 'Jodhpur',
-      },
-      {
-        id: '4',
-        timestamp: new Date(Date.now() - 75 * 60 * 1000),
-        phoneNumber: '+91 65432 10987',
-        aadharNumber: 'XXXX XXXX 2345',
-        photoPath: 'assets/images/Mithun.jpeg',
-        status: 'Offline',
-        name: 'Mithun',
-        location: 'Kota',
-      },
-    ];
-    setUserLogs(logs);
+    const fetchUserLogs = async () => {
+      try {
+        const response = await api.get('/users/logs');
+        setUserLogs(response.data.users);
+      } catch (error) {
+        console.error('Failed to fetch user logs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserLogs();
   }, []);
 
   const filteredLogs = userLogs.filter(log => {
     const matchesSearch = log.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.phoneNumber.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || log.status.toLowerCase() === statusFilter;
+                         log.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         log.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'active' && log.is_active) ||
+                         (statusFilter === 'inactive' && !log.is_active);
     return matchesSearch && matchesStatus;
   });
 
-  const formatTimestamp = (timestamp: Date) => {
+  const formatTimestamp = (timestamp?: Date) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
+    const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(minutes / 60);
     
@@ -85,7 +59,7 @@ const AdminUserLogs: React.FC = () => {
     } else if (hours < 24) {
       return `${hours}h ago`;
     } else {
-      return timestamp.toLocaleDateString();
+      return date.toLocaleDateString();
     }
   };
 
@@ -122,7 +96,7 @@ const AdminUserLogs: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, location, or phone..."
+                placeholder="Search by name, username, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -132,83 +106,80 @@ const AdminUserLogs: React.FC = () => {
               <Filter className="h-4 w-4 text-gray-400" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'online' | 'offline')}
+                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Status</option>
-                <option value="online">Online</option>
-                <option value="offline">Offline</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* User Logs Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredLogs.map((log) => (
-            <div key={log.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow">
-              <div className="p-6">
-                {/* Header with status */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <img
-                      src={`/src/images/${log.photoPath.split('/').pop()}`}
-                      alt={log.name}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        target.nextElementSibling!.classList.remove('hidden');
-                      }}
-                    />
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center hidden">
-                      <span className="text-lg font-bold text-white">
-                        {log.name.split(' ').map(n => n[0]).join('')}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{log.name}</h3>
-                      <div className="flex items-center space-x-2">
-                        <div className={`w-2 h-2 rounded-full ${log.status === 'Online' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        <span className={`text-sm ${log.status === 'Online' ? 'text-green-600' : 'text-gray-500'}`}>
-                          {log.status}
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading user logs...</p>
+          </div>
+        ) : (
+          /* User Logs Grid */
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredLogs.map((log) => (
+              <div key={log._id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow">
+                <div className="p-6">
+                  {/* Header with status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-lg font-bold text-white">
+                          {log.name.split(' ').map(n => n[0]).join('')}
                         </span>
                       </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-800">{log.name}</h3>
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${log.is_active ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          <span className={`text-sm ${log.is_active ? 'text-green-600' : 'text-gray-500'}`}>
+                            {log.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center text-gray-400 text-sm">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {formatTimestamp(log.last_login)}
                     </div>
                   </div>
-                  <div className="flex items-center text-gray-400 text-sm">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {formatTimestamp(log.timestamp)}
-                  </div>
-                </div>
 
-                {/* User Details */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3 text-sm">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{log.phoneNumber}</span>
+                  {/* User Details */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3 text-sm">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">{log.username}</span>
+                    </div>
+                    <div className="flex items-center space-x-3 text-sm">
+                      <CreditCard className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600 capitalize">{log.role}</span>
+                    </div>
+                    <div className="flex items-center space-x-3 text-sm">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600">{log.email}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <CreditCard className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{log.aadharNumber}</span>
-                  </div>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600">{log.location}</span>
-                  </div>
-                </div>
 
-                {/* Action Button */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <button className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors">
-                    <Eye className="h-4 w-4" />
-                    <span>View Details</span>
-                  </button>
+                  {/* Action Button */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="text-xs text-gray-500">
+                      Joined: {new Date(log.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredLogs.length === 0 && (
