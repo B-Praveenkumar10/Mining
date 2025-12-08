@@ -4,6 +4,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -645,6 +647,134 @@ app.get('/api/users/logs', authenticateToken, async (req, res) => {
     }).sort({ last_login: -1 });
     
     res.json({ users });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Advanced Analytics route (CSV-based)
+app.get('/api/analytics/advanced', async (req, res) => {
+  try {
+    const csvPath = path.join(__dirname, 'crusher_analytics.csv');
+    
+    // Generate sample data if CSV not found
+    if (!fs.existsSync(csvPath)) {
+      const powerEfficiencyTrend = Array.from({ length: 20 }, (_, i) => ({
+        timestamp: `${8 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+        power: 2000 + Math.random() * 500,
+        efficiency: 75 + Math.random() * 20
+      }));
+      
+      const throughputEnergyCurve = Array.from({ length: 20 }, (_, i) => ({
+        throughput: 50 + Math.random() * 30,
+        powerPerTon: 0.4 + Math.random() * 0.2
+      }));
+      
+      const temperatureData = Array.from({ length: 20 }, (_, i) => ({
+        timestamp: `${8 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+        temperature: 55 + Math.random() * 20
+      }));
+      
+      return res.json({
+        powerEfficiencyTrend,
+        throughputEnergyCurve,
+        temperatureData,
+        alertCounts: { High: 5, Medium: 8, Low: 12 },
+        energySourceData: { thermal: 1200, solar: 800 },
+        downtimeData: { planned: 25, unplanned: 8 }
+      });
+    }
+    
+    const csvData = fs.readFileSync(csvPath, 'utf-8');
+    const lines = csvData.split('\n').slice(0, 51);
+    const headers = lines[0].split(',').map(h => h.trim());
+    
+    const data = [];
+    for (let i = 1; i < lines.length && i < 51; i++) {
+      if (lines[i].trim()) {
+        const values = lines[i].split(',');
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index]?.trim() || '';
+        });
+        data.push(row);
+      }
+    }
+    
+    const powerEfficiencyTrend = data.slice(0, 20).map((row, i) => ({
+      timestamp: row['Timestamp']?.substring(11, 16) || `${8 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+      power: parseFloat(row['P_Total (kW)'] || row['P_Primary (kW)']) || 2000,
+      efficiency: parseFloat(row['Power per Ton (kWh/Ton)']) || 80
+    }));
+    
+    const throughputEnergyCurve = data.slice(0, 20).map(row => ({
+      throughput: parseFloat(row['Throughput (Tons/Hr)']) || 60,
+      powerPerTon: parseFloat(row['Power per Ton (kWh/Ton)']) || 0.45
+    }));
+    
+    const temperatureData = data.slice(0, 20).map((row, i) => ({
+      timestamp: row['Timestamp']?.substring(11, 16) || `${8 + Math.floor(i / 2)}:${i % 2 === 0 ? '00' : '30'}`,
+      temperature: parseFloat(row['T_Primary (°C)']) || 65
+    }));
+    
+    const alertCounts = {};
+    data.forEach(row => {
+      const alertType = row['Alert Type'];
+      if (alertType && alertType !== 'None' && alertType !== '') {
+        alertCounts[alertType] = (alertCounts[alertType] || 0) + 1;
+      }
+    });
+    if (Object.keys(alertCounts).length === 0) {
+      alertCounts['High'] = 5;
+      alertCounts['Medium'] = 8;
+      alertCounts['Low'] = 12;
+    }
+    
+    const energySourceData = {
+      thermal: data.reduce((sum, row) => sum + (parseFloat(row['%E_Thermal']) || 60), 0) || 1200,
+      solar: data.reduce((sum, row) => sum + (parseFloat(row['%E_Solar']) || 40), 0) || 800
+    };
+    
+    const downtimeData = {
+      planned: data.reduce((sum, row) => sum + (parseFloat(row['Planned Downtime (Hrs)']) || 0), 0) || 25,
+      unplanned: data.reduce((sum, row) => sum + (parseFloat(row['Unplanned Downtime (Hrs)']) || 0), 0) || 8
+    };
+    
+    res.json({
+      powerEfficiencyTrend,
+      throughputEnergyCurve,
+      temperatureData,
+      alertCounts,
+      energySourceData,
+      downtimeData
+    });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Crusher temperature analytics
+app.get('/api/analytics/temperature', async (req, res) => {
+  try {
+    const machines = ['machine-01', 'machine-02', 'machine-03'];
+    const temperatureData = [];
+    
+    for (const machineId of machines) {
+      const Model = getMachineModel(machineId);
+      const data = await Model.find().sort({ timestamp: -1 }).limit(50);
+      
+      data.forEach(item => {
+        temperatureData.push({
+          timestamp: item.timestamp,
+          temperature: 25 + (item.motor_current_A || 0),
+          machine: machineId,
+          status: item.machine_status
+        });
+      });
+    }
+    
+    res.json({ temperatureData });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

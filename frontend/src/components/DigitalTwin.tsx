@@ -68,9 +68,9 @@ const DigitalTwin: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-neutral-900">
       {/* Header */}
-      <div className="bg-gray-50 shadow-sm border-b border-gray-200">
+      <div className="bg-gray-50 dark:bg-neutral-800 shadow-sm border-b border-gray-200 dark:border-neutral-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16">
             <button
@@ -80,8 +80,8 @@ const DigitalTwin: React.FC = () => {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="flex items-center space-x-3">
-              <Eye className="h-6 w-6 text-gray-700" />
-              <h1 className="text-xl font-semibold text-gray-800">Digital Twin - Virtual Ore Journey</h1>
+              <Eye className="h-6 w-6 text-gray-700 dark:text-gray-300" />
+              <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Digital Twin - Virtual Ore Journey</h1>
             </div>
           </div>
         </div>
@@ -91,17 +91,17 @@ const DigitalTwin: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Video Upload & Analysis */}
           <div className="space-y-6">
-            <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold mb-4 text-gray-800">Step 1: Upload Ore Video</h3>
+            <div className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-neutral-700">
+              <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Step 1: Upload Ore Video</h3>
               
               {!uploadedVideo ? (
                 <div 
                   onClick={() => fileInputRef.current?.click()}
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-500 transition-colors"
                 >
-                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">Click to upload conveyor belt video</p>
-                  <p className="text-sm text-gray-500 mt-2">Supports MP4, AVI, MOV formats</p>
+                  <Upload className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400">Click to upload conveyor belt video</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Supports MP4, AVI, MOV formats</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -140,39 +140,47 @@ const DigitalTwin: React.FC = () => {
 
             {/* Analysis Results */}
             {analysisComplete && (
-              <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-                <h3 className="text-lg font-semibold mb-4 text-gray-800">Step 2: AI Analysis Results</h3>
+              <div className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-neutral-700">
+                <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Step 2: AI Analysis Results</h3>
+                
+                <div className="mb-4">
+                  <img 
+                    src="/output.png" 
+                    alt="Analysis Output" 
+                    className="w-full rounded-lg border border-gray-300 dark:border-neutral-600"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <p className="text-sm font-medium text-gray-600">Ore Type</p>
-                    <p className="text-lg font-bold text-blue-700">{oreAnalysisData.oreType}</p>
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Ore Type</p>
+                    <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{oreAnalysisData.oreType}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <p className="text-sm font-medium text-gray-600">Hardness</p>
-                    <p className="text-lg font-bold text-green-700">{oreAnalysisData.hardness}</p>
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Hardness</p>
+                    <p className="text-lg font-bold text-green-700 dark:text-green-400">{oreAnalysisData.hardness}</p>
                   </div>
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <p className="text-sm font-medium text-gray-600">Moisture</p>
-                    <p className="text-lg font-bold text-orange-700">{oreAnalysisData.moisture}</p>
+                  <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Moisture</p>
+                    <p className="text-lg font-bold text-orange-700 dark:text-orange-400">{oreAnalysisData.moisture}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <p className="text-sm font-medium text-gray-600">Est. Throughput</p>
-                    <p className="text-lg font-bold text-purple-700">{oreAnalysisData.estimatedThroughput}</p>
+                  <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Est. Throughput</p>
+                    <p className="text-lg font-bold text-purple-700 dark:text-purple-400">{oreAnalysisData.estimatedThroughput}</p>
                   </div>
                 </div>
                 
-                <div className="mt-4 p-4 bg-gray-100 rounded-lg">
-                  <h4 className="font-semibold mb-2">Size Distribution</h4>
+                <div className="mt-4 p-4 bg-gray-100 dark:bg-neutral-700 rounded-lg">
+                  <h4 className="font-semibold mb-2 text-gray-800 dark:text-gray-200">Size Distribution</h4>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-gray-700 dark:text-gray-300">
                       <span>Large ({'>'}5cm)</span>
                       <span className="font-medium">{oreAnalysisData.sizeDistribution.large}%</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-gray-700 dark:text-gray-300">
                       <span>Medium (1-5cm)</span>
                       <span className="font-medium">{oreAnalysisData.sizeDistribution.medium}%</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-gray-700 dark:text-gray-300">
                       <span>Fine ({'<'}1cm)</span>
                       <span className="font-medium">{oreAnalysisData.sizeDistribution.fine}%</span>
                     </div>
@@ -185,9 +193,9 @@ const DigitalTwin: React.FC = () => {
           {/* Virtual Processing Journey */}
           <div className="space-y-6">
             {analysisComplete && (
-              <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
+              <div className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-neutral-700">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Step 3: Virtual Processing Journey</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Step 3: Virtual Processing Journey</h3>
                   <div className="flex space-x-2">
                     <button
                       onClick={() => setSimulationPlaying(!simulationPlaying)}
@@ -214,36 +222,36 @@ const DigitalTwin: React.FC = () => {
                       }}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-800">{stage.stage}</h4>
-                        <span className="text-sm bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                        <h4 className="font-semibold text-gray-800 dark:text-gray-200">{stage.stage}</h4>
+                        <span className="text-sm bg-gray-200 dark:bg-neutral-600 text-gray-700 dark:text-gray-200 px-2 py-1 rounded-full">
                           {stage.efficiency}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{stage.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{stage.description}</p>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                          <span className="text-gray-500">Size Reduction:</span>
-                          <span className="font-medium ml-2">{stage.sizeReduction}</span>
+                          <span className="text-gray-500 dark:text-gray-400">Size Reduction:</span>
+                          <span className="font-medium ml-2 text-gray-700 dark:text-gray-300">{stage.sizeReduction}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Power Draw:</span>
-                          <span className="font-medium ml-2">{stage.powerDraw}</span>
+                          <span className="text-gray-500 dark:text-gray-400">Power Draw:</span>
+                          <span className="font-medium ml-2 text-gray-700 dark:text-gray-300">{stage.powerDraw}</span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
 
-                <div className="mt-6 p-4 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg border border-gray-300">
-                  <h4 className="font-semibold text-gray-800 mb-2">Predicted Output</h4>
+                <div className="mt-6 p-4 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-neutral-700 dark:to-neutral-600 rounded-lg border border-gray-300 dark:border-neutral-600">
+                  <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Predicted Output</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-600">Total Energy Required:</span>
-                      <span className="font-bold text-gray-700 ml-2">{oreAnalysisData.energyRequired}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Total Energy Required:</span>
+                      <span className="font-bold text-gray-700 dark:text-gray-200 ml-2">{oreAnalysisData.energyRequired}</span>
                     </div>
                     <div>
-                      <span className="text-gray-600">Final Product Size:</span>
-                      <span className="font-bold text-gray-700 ml-2">150μm (P80)</span>
+                      <span className="text-gray-600 dark:text-gray-400">Final Product Size:</span>
+                      <span className="font-bold text-gray-700 dark:text-gray-200 ml-2">150μm (P80)</span>
                     </div>
                   </div>
                 </div>

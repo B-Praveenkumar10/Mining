@@ -1,7 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Users, Eye } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Users, Eye, Play, Square, Cog, Bell, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMachine } from '../contexts/MachineProvider';
+import { api } from '../services/api';
 
 // Simple dark mode toggler using a class on <html>
 function useColorMode() {
@@ -30,6 +32,47 @@ interface LayoutShellProps {
 const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
   const { logout, user } = useAuth();
   const { mode, toggle } = useColorMode();
+  const { machines, loading, startMachine, stopMachine } = useMachine();
+  const [showSidePane, setShowSidePane] = React.useState(false);
+  const [pendingSignups, setPendingSignups] = React.useState<any[]>([]);
+  const [signupsLoading, setSignupsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (user?.role === 'engineer') {
+      const fetchSignups = async () => {
+        try {
+          setSignupsLoading(true);
+          const data = await api.getPendingSignups();
+          setPendingSignups(data.signups || []);
+        } catch (error) {
+          console.error('Failed to fetch signups:', error);
+        } finally {
+          setSignupsLoading(false);
+        }
+      };
+      fetchSignups();
+      const interval = setInterval(fetchSignups, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const handleApproveSignup = async (signupId: string) => {
+    try {
+      await api.approveSignup(signupId);
+      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
+    } catch (error: any) {
+      alert('Failed to approve: ' + error.message);
+    }
+  };
+
+  const handleRejectSignup = async (signupId: string) => {
+    try {
+      await api.rejectSignup(signupId);
+      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
+    } catch (error: any) {
+      alert('Failed to reject: ' + error.message);
+    }
+  };
 
   // Add collapsed state persisted in localStorage
   const [collapsed, setCollapsed] = React.useState<boolean>(() => {
@@ -138,28 +181,158 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             </button>
             <span className="text-sm font-medium">{user?.name}</span>
           </div>
-          {/* Removed duplicate nav & avatar - keep header minimal */}
-          <div className="flex-1" />
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-3 pr-2">
-              {/* When sidebar is collapsed the header remains minimal - avatar kept */}
-              <div
-                className="relative w-9 h-9 rounded-full bg-gradient-to-br from-brand-500/70 via-brand-600 to-brand-700 shadow-inner ring-2 ring-white dark:ring-neutral-800 overflow-hidden"
-                aria-label={`User avatar for ${user?.name || 'user'}`}
-              >
-                <div className="absolute inset-0 mix-blend-overlay opacity-30 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.6),transparent)]" />
-                <span className="flex h-full w-full items-center justify-center text-xs font-bold tracking-wide text-white">
-                  {user?.name?.split(' ').map(n=>n[0]).join('').slice(0,2)}
+          <div className="ml-auto flex items-center gap-2">
+            {user?.role === 'engineer' && pendingSignups.length > 0 && (
+              <div className="relative">
+                <Bell className="h-5 w-5 text-amber-500" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                  {pendingSignups.length}
                 </span>
               </div>
-              
-            </div>
+            )}
+            <button
+              onClick={() => setShowSidePane(!showSidePane)}
+              className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              title={user?.role === 'engineer' ? 'Machine Records & Approvals' : 'Machine Controls'}
+            >
+              <Monitor className="h-5 w-5" />
+            </button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">
-          <div className="mx-auto max-w-7xl space-y-6 animate-fade-in">
+        <main className="flex-1 p-4 md:p-6 flex gap-4">
+          <div className="flex-1 mx-auto max-w-7xl space-y-6 animate-fade-in">
             {children}
           </div>
+          
+          {/* Side Pane */}
+          {showSidePane && (
+            <div className="w-80 bg-white dark:bg-neutral-800 shadow-lg border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 h-fit sticky top-20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold flex items-center">
+                  <Monitor className="h-4 w-4 mr-2" />
+                  {user?.role === 'engineer' ? 'Records & Approvals' : 'Machine Controls'}
+                </h3>
+                <button onClick={() => setShowSidePane(false)} className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              
+              {user?.role === 'engineer' && pendingSignups.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <Bell className="h-3 w-3" /> Pending Approvals ({pendingSignups.length})
+                  </h4>
+                  {pendingSignups.map(signup => (
+                    <div key={signup._id} className="p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded">
+                      <div className="text-xs font-medium mb-1">{signup.username}</div>
+                      <div className="text-[10px] text-neutral-600 dark:text-neutral-400 mb-2">ID: {signup.emp_id}</div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleApproveSignup(signup._id)}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] bg-green-500 text-white rounded hover:bg-green-600"
+                        >
+                          <CheckCircle className="h-3 w-3" /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleRejectSignup(signup._id)}
+                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-[10px] bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          <XCircle className="h-3 w-3" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t border-neutral-200 dark:border-neutral-700 my-3"></div>
+                </div>
+              )}
+              
+              {loading || signupsLoading ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600 mx-auto"></div>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">Loading...</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto">
+                  <h4 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 mb-2">Machine Records</h4>
+                  {machines.map((machine) => (
+                    <div key={machine.id} className="p-3 bg-neutral-50 dark:bg-neutral-700 rounded border border-neutral-200 dark:border-neutral-600">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">{machine.name}</span>
+                        <div className={`w-2 h-2 rounded-full ${
+                          machine.status === 'running' ? 'bg-green-500' :
+                          machine.status === 'maintenance' ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Throughput:</span>
+                          <span className="font-medium ml-1">{machine.throughput} t/h</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Power:</span>
+                          <span className="font-medium ml-1">{machine.powerDraw} MW</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Efficiency:</span>
+                          <span className="font-medium ml-1">{machine.efficiency}%</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Temperature:</span>
+                          <span className="font-medium ml-1">{machine.temperature}°C</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Vibration:</span>
+                          <span className="font-medium ml-1">{machine.vibration} mm/s</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Op. Hours:</span>
+                          <span className="font-medium ml-1">{machine.operatingHours}h</span>
+                        </div>
+                        <div>
+                          <span className="text-neutral-500 dark:text-neutral-400">Last Maint:</span>
+                          <span className="font-medium ml-1">{machine.lastMaintenance}</span>
+                        </div>
+                        <div className="pt-1 border-t border-neutral-200 dark:border-neutral-600">
+                          <span className="text-neutral-500 dark:text-neutral-400">Status:</span>
+                          <span className={`font-medium ml-1 capitalize ${
+                            machine.status === 'running' ? 'text-green-600 dark:text-green-400' :
+                            machine.status === 'maintenance' ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'
+                          }`}>{machine.status}</span>
+                        </div>
+                      </div>
+                      {user?.role !== 'engineer' && (
+                        <div className="mt-3 space-y-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => startMachine(machine.id)}
+                              disabled={machine.status === 'running'}
+                              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Play className="h-3 w-3" /> Start
+                            </button>
+                            <button
+                              onClick={() => stopMachine(machine.id)}
+                              disabled={machine.status !== 'running'}
+                              className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Square className="h-3 w-3" /> Stop
+                            </button>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-600 overflow-hidden">
+                            <div
+                              className={`h-full transition-all duration-500 ${
+                                machine.status === 'running' ? 'bg-green-500 w-full' : 'bg-red-500 w-0'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     </div>

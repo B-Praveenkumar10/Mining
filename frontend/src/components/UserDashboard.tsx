@@ -6,7 +6,7 @@ import {
   Home, Activity, AlertTriangle, User, LogOut, MessageCircle,
   Sun, Wind, Battery, Zap, Phone, Award, Plus, Clock, Eye, Play, Square, Cog
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, AreaChart, Area, Tooltip, Legend } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 
 const UserDashboard: React.FC = () => {
@@ -25,6 +25,24 @@ const UserDashboard: React.FC = () => {
   const [trendsData, setTrendsData] = useState<any[]>([]);
   const [breakdownData, setBreakdownData] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<string[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      const fetchAnalytics = async () => {
+        try {
+          console.log('Fetching analytics data...');
+          const data = await api.getAdvancedAnalytics();
+          console.log('Analytics data received:', data);
+          setAnalyticsData(data);
+        } catch (error) {
+          console.error('Failed to fetch advanced analytics:', error);
+          setAnalyticsData({ error: true });
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [activeTab]);
   
   useEffect(() => {
     const fetchAllData = async () => {
@@ -257,37 +275,65 @@ const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Renewable Breakdown */}
-      <div className="bg-gray-50 rounded-xl p-6 shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Equipment Utilization Breakdown</h3>
-        <div className="flex items-center justify-center">
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={breakdownData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                dataKey="value"
-              >
-                {breakdownData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          {breakdownData.map((item, index) => (
-            <div key={index} className="text-center">
-              <div className="flex items-center justify-center mb-2">
-                <div className="w-4 h-4 rounded-full mr-2" style={{ backgroundColor: item.color }} />
-                <span className="text-sm font-medium">{item.name}</span>
+      {/* Equipment Utilization Breakdown */}
+      <div className="bg-gray-50 dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-neutral-700">
+        <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Equipment Utilization Breakdown</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={breakdownData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  dataKey="value"
+                >
+                  {breakdownData.map((entry, index) => (
+                    <Cell key={index} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="space-y-3">
+            {machines.map((machine, index) => (
+              <div key={machine.id} className="p-3 bg-white dark:bg-neutral-700 rounded-lg border border-gray-200 dark:border-neutral-600">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: breakdownData[index]?.color || '#gray' }} />
+                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{machine.name}</span>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    machine.status === 'running' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    machine.status === 'maintenance' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    {machine.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Utilization:</span>
+                    <span className="font-bold ml-1 text-gray-800 dark:text-gray-200">{breakdownData[index]?.value.toFixed(1) || 0}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Efficiency:</span>
+                    <span className="font-bold ml-1 text-gray-800 dark:text-gray-200">{machine.efficiency}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Throughput:</span>
+                    <span className="font-bold ml-1 text-gray-800 dark:text-gray-200">{machine.throughput} t/h</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Power:</span>
+                    <span className="font-bold ml-1 text-gray-800 dark:text-gray-200">{machine.powerDraw} MW</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-bold">{item.value.toFixed(1)}%</p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 
@@ -426,6 +472,103 @@ const UserDashboard: React.FC = () => {
     </div>
   );
 
+  const renderAnalytics = () => {
+    if (!analyticsData) return <div className="text-center py-8 text-gray-800 dark:text-gray-200">Loading analytics...</div>;
+    if (analyticsData.error) return <div className="text-center py-8 text-red-600">Error loading analytics</div>;
+
+    const energySourceData = [
+      { name: 'Thermal', value: analyticsData.energySourceData.thermal },
+      { name: 'Solar', value: analyticsData.energySourceData.solar }
+    ];
+
+    const alertData = Object.entries(analyticsData.alertCounts).map(([key, value]) => ({
+      type: key,
+      count: value
+    }));
+
+    const downtimeData = [
+      { type: 'Planned', hours: analyticsData.downtimeData.planned },
+      { type: 'Unplanned', hours: analyticsData.downtimeData.unplanned }
+    ];
+
+    const COLORS = ['#f59e0b', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6'];
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 shadow-lg border border-orange-200 dark:border-orange-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Energy Source Distribution</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={energySourceData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
+                  {energySourceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Alert Distribution</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie data={alertData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} dataKey="count" label>
+                  {alertData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 shadow-lg border border-blue-200 dark:border-blue-700">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Downtime Comparison</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={downtimeData}>
+              <XAxis dataKey="type" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="hours" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 shadow-lg border border-green-200 dark:border-green-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Power & Efficiency Trend</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={analyticsData.powerEfficiencyTrend.slice(0, 12)}>
+                <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Area type="monotone" dataKey="power" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                <Area type="monotone" dataKey="efficiency" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-purple-200 dark:border-purple-700">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Energy Efficiency Curve</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={analyticsData.throughputEnergyCurve.slice(0, 12)}>
+                <XAxis dataKey="throughput" tick={{ fontSize: 10 }} />
+                <YAxis />
+                <Tooltip />
+                <Area type="monotone" dataKey="powerPerTon" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderProfile = () => (
     <div className="space-y-6">
       {/* User Avatar */}
@@ -522,7 +665,8 @@ const UserDashboard: React.FC = () => {
               { id: 'dashboard', label: 'Controls', icon: Home },
               { id: 'usage', label: 'Monitoring', icon: Activity },
               { id: 'priority', label: 'Alerts', icon: AlertTriangle },
-              { id: 'profile', label: 'Profile', icon: User }
+              { id: 'profile', label: 'Profile', icon: User },
+              { id: 'analytics', label: 'Analytics', icon: Activity }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -546,6 +690,7 @@ const UserDashboard: React.FC = () => {
           {activeTab === 'usage' && renderUsage()}
           {activeTab === 'priority' && renderPriority()}
           {activeTab === 'profile' && renderProfile()}
+          {activeTab === 'analytics' && renderAnalytics()}
         </div>
       </div>
     </div>

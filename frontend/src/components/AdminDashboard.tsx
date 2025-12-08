@@ -31,6 +31,24 @@ const AdminDashboard: React.FC = () => {
   const [priorityRequests, setPriorityRequests] = useState<any[]>([]);
   const [regionalData, setRegionalData] = useState<any[]>([]);
   const [pendingSignups, setPendingSignups] = useState<any[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  
+  useEffect(() => {
+    if (activeTab === 'advanced') {
+      const fetchAnalytics = async () => {
+        try {
+          console.log('Fetching analytics data...');
+          const data = await api.getAdvancedAnalytics();
+          console.log('Analytics data received:', data);
+          setAnalyticsData(data);
+        } catch (error) {
+          console.error('Failed to fetch advanced analytics:', error);
+          setAnalyticsData({ error: true });
+        }
+      };
+      fetchAnalytics();
+    }
+  }, [activeTab]);
   
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -327,72 +345,120 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
+  const renderAdvancedAnalytics = () => {
+    if (!analyticsData) return <div className="text-center py-8 text-primary">Loading analytics...</div>;
+    if (analyticsData.error) return <div className="text-center py-8 text-red-600">Error loading analytics</div>;
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 shadow-lg border border-blue-200 dark:border-blue-700">
+            <h3 className="text-lg font-semibold mb-4 text-primary">Power & Efficiency Trend</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analyticsData.powerEfficiencyTrend.slice(0, 12)} className="chart-surface">
+                <XAxis dataKey="timestamp" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
+                <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
+                <Bar dataKey="power" fill="#3b82f6" name="Power (kW)" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="efficiency" fill="#10b981" name="Efficiency (%)" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 shadow-lg border border-orange-200 dark:border-orange-700">
+            <h3 className="text-lg font-semibold mb-4 text-primary">Throughput-Energy Curve</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analyticsData.throughputEnergyCurve.slice(0, 12)} className="chart-surface">
+                <XAxis dataKey="throughput" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
+                <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
+                <Bar dataKey="powerPerTon" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-700">
+          <h3 className="text-lg font-semibold mb-4 text-primary">Crusher Temperature Monitoring</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={analyticsData.temperatureData.slice(0, 20)} className="chart-surface">
+              <XAxis dataKey="timestamp" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
+              <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
+              <Bar dataKey="temperature" fill="#ef4444" name="Temperature (°C)" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded">
+            <p className="text-sm text-amber-800 dark:text-amber-200">⚠️ Threshold: 70°C - Monitor temperature to prevent overheating</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderMap = () => (
     <div className="space-y-6">
       {/* Interactive Rajasthan Map */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">ML Prediction Output</h3>
+      <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700">
+        <h3 className="text-lg font-semibold mb-4 text-primary">ML Prediction Output</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-gray-800 mb-2">Next 10-Min Predictions</h4>
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+              <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Next 10-Min Predictions</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Mill Speed:</span>
-                  <span className="font-bold text-blue-600">18.2 RPM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Mill Speed:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">18.2 RPM</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Crusher RPM:</span>
-                  <span className="font-bold text-blue-600">285 RPM</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Crusher RPM:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">285 RPM</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Power Draw:</span>
-                  <span className="font-bold text-blue-600">4.2 MW</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Power Draw:</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">4.2 MW</span>
                 </div>
               </div>
             </div>
             
-            <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-              <h4 className="font-semibold text-gray-800 mb-2">Equipment Life Predictions</h4>
+            <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border border-green-200 dark:border-green-700">
+              <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Equipment Life Predictions</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Liner Life:</span>
-                  <span className="font-bold text-green-600">18 days</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Liner Life:</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">18 days</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Bearing Life:</span>
-                  <span className="font-bold text-green-600">45 days</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Bearing Life:</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">45 days</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Next Downtime:</span>
-                  <span className="font-bold text-orange-600">2.5 hours</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Next Downtime:</span>
+                  <span className="font-bold text-orange-600 dark:text-orange-400">2.5 hours</span>
                 </div>
               </div>
             </div>
           </div>
           
           <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-              <h4 className="font-semibold text-gray-800 mb-2">Optimization Recommendations</h4>
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/30 dark:to-pink-900/30 rounded-lg border border-purple-200 dark:border-purple-700">
+              <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Optimization Recommendations</h4>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Throughput:</span>
-                  <span className="font-bold text-purple-600">850 t/h</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Throughput:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">850 t/h</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Energy Saving:</span>
-                  <span className="font-bold text-purple-600">12% potential</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Energy Saving:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">12% potential</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Efficiency Gain:</span>
-                  <span className="font-bold text-purple-600">+8.5%</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Efficiency Gain:</span>
+                  <span className="font-bold text-purple-600 dark:text-purple-400">+8.5%</span>
                 </div>
               </div>
             </div>
             
-            <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-              <h4 className="font-semibold text-gray-800 mb-2">Real-time Updates</h4>
-              <div className="text-xs text-gray-500 space-y-1">
+            <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
+              <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Real-time Updates</h4>
+              <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
                 <p>• Data updates every 3 seconds</p>
                 <p>• AI model last trained: 2 hours ago</p>
                 <p>• Prediction accuracy: 94.2%</p>
@@ -403,31 +469,31 @@ const AdminDashboard: React.FC = () => {
         </div>
         
         {/* Legend */}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold text-gray-800 mb-2">Legend</h4>
+        <div className="mt-4 p-4 bg-gray-50 dark:bg-neutral-700 rounded-lg">
+          <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">Legend</h4>
           <div className="flex flex-wrap gap-4">
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-green-500 rounded-full" />
-              <span className="text-sm text-gray-600">80%+ Efficiency</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">80%+ Efficiency</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-orange-500 rounded-full" />
-              <span className="text-sm text-gray-600">70-79% Efficiency</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">70-79% Efficiency</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 bg-red-500 rounded-full" />
-              <span className="text-sm text-gray-600">Below 70%</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Below 70%</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Region Details */}
-      <div className="bg-white rounded-xl p-6 shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Prediction Details</h3>
+      <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700">
+        <h3 className="text-lg font-semibold mb-4 text-primary">Prediction Details</h3>
         <div className="space-y-3">
           {regionalData.map((region) => (
-            <div key={region.region} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div key={region.region} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-700 rounded-lg">
               <div className="flex items-center space-x-4">
                 <div className={`w-4 h-4 rounded-full ${
                   region.usage >= 80 ? 'bg-green-500' :
@@ -436,8 +502,8 @@ const AdminDashboard: React.FC = () => {
                 <span className="font-medium text-primary">{region.region}</span>
               </div>
               <div className="flex items-center space-x-4">
-                <span className="text-lg font-bold text-blue-600">{region.usage}%</span>
-                <span className="text-sm text-green-600">{region.trend}</span>
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">{region.usage}%</span>
+                <span className="text-sm text-green-600 dark:text-green-400">{region.trend}</span>
               </div>
             </div>
           ))}
@@ -528,7 +594,8 @@ const AdminDashboard: React.FC = () => {
               { id: 'control', label: 'AI Control', icon: Settings },
               { id: 'analytics', label: 'Machine Data', icon: BarChart3 },
               { id: 'priority', label: 'Monitoring & Alerts', icon: AlertTriangle },
-              { id: 'map', label: 'ML Predictions', icon: Brain }
+              { id: 'map', label: 'ML Predictions', icon: Brain },
+              { id: 'advanced', label: 'Analytics', icon: Monitor }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -552,6 +619,7 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'analytics' && renderAnalytics()}
           {activeTab === 'priority' && renderPriorityManagement()}
           {activeTab === 'map' && renderMap()}
+          {activeTab === 'advanced' && renderAdvancedAnalytics()}
         </div>
         </div>
       </div>
