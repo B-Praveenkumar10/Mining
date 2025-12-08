@@ -132,7 +132,7 @@ const PriorityManager: React.FC<PriorityManagerProps> = ({ priorities, onUpdateP
                     onChange={(e) => onUpdatePriority(priority.id, {
                       active: e.target.checked
                     })}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    
                   />
                   <label htmlFor={`active-${priority.id}`} className="text-sm text-gray-700">
                     Active Priority

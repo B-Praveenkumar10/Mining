@@ -58,6 +58,16 @@ const userSchema = new mongoose.Schema({
   is_active: { type: Boolean, default: true }
 });
 
+const operatorSignupSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password_hash: { type: String, required: true },
+  emp_id: { type: String, required: true, unique: true },
+  mining_engg_approval: { type: String, enum: ['no', 'yes'], default: 'no' },
+  created_at: { type: Date, default: Date.now },
+  approved_at: Date,
+  approved_by: String
+});
+
 const machineDataSchema = new mongoose.Schema({
   machine_id: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
@@ -93,6 +103,7 @@ const alertSchema = new mongoose.Schema({
 
 // Models
 const User = mongoose.model('User', userSchema);
+const OperatorSignup = mongoose.model('OperatorSignup', operatorSignupSchema);
 const Machine1Data = mongoose.model('Machine1Data', machineDataSchema);
 const Machine2Data = mongoose.model('Machine2Data', machineDataSchema);
 const Machine3Data = mongoose.model('Machine3Data', machineDataSchema);
@@ -250,6 +261,93 @@ app.post('/api/auth/register', async (req, res) => {
       name: user.name,
       email: user.email
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/operator-signup', async (req, res) => {
+  try {
+    const { username, password, emp_id } = req.body;
+    
+    const existingSignup = await OperatorSignup.findOne({ $or: [{ username }, { emp_id }] });
+    if (existingSignup) {
+      return res.status(400).json({ error: 'Username or Employee ID already exists' });
+    }
+
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    const signup = new OperatorSignup({
+      username,
+      password_hash: hashPassword(password),
+      emp_id
+    });
+
+    await signup.save();
+    res.json({ message: 'Signup request submitted. Awaiting mining engineer approval.' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/auth/pending-signups', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'engineer') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const pendingSignups = await OperatorSignup.find({ mining_engg_approval: 'no' })
+      .select('-password_hash')
+      .sort({ created_at: -1 });
+    
+    res.json({ signups: pendingSignups });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/approve-signup/:signupId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'engineer') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const signup = await OperatorSignup.findById(req.params.signupId);
+    if (!signup) {
+      return res.status(404).json({ error: 'Signup request not found' });
+    }
+
+    signup.mining_engg_approval = 'yes';
+    signup.approved_at = new Date();
+    signup.approved_by = req.user.username;
+    await signup.save();
+
+    const user = new User({
+      username: signup.username,
+      password_hash: signup.password_hash,
+      role: 'operator',
+      name: signup.username,
+      email: `${signup.username}@mining.com`
+    });
+    await user.save();
+
+    res.json({ message: 'Operator approved and added to login system' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/reject-signup/:signupId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'engineer') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await OperatorSignup.findByIdAndDelete(req.params.signupId);
+    res.json({ message: 'Operator signup rejected and removed' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

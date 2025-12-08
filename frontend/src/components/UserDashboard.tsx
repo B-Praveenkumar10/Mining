@@ -479,13 +479,6 @@ const UserDashboard: React.FC = () => {
             <h1 className="text-xl font-semibold text-gray-800">Operator Dashboard</h1>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setShowMachineControls(!showMachineControls)}
-                className="p-2 text-gray-600 hover:text-gray-800"
-                title="Machine Controls"
-              >
-                <Cog className="h-5 w-5" />
-              </button>
-              <button
                 onClick={() => navigate('/chatbot')}
                 className="p-2 text-gray-600 hover:text-gray-800"
               >
@@ -509,90 +502,7 @@ const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
-        {/* Machine Control Left Panel - Toggleable */}
-        {showMachineControls && (
-          <div className="w-80 bg-gray-50 shadow-sm border rounded-lg p-4">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800">Machine Controls</h3>
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                <p className="text-sm text-gray-600 mt-2">Loading machines...</p>
-              </div>
-            ) : (
-            <div className="space-y-4">
-              {machines.map((machine) => (
-                <div key={machine.id} className="p-4 bg-white rounded-lg border">
-                  <h4 className="font-semibold text-gray-800 mb-3">{machine.name}</h4>
-                  
-                  {/* Control Bar with Start/Stop buttons */}
-                  <div className="flex items-center space-x-3 mb-3">
-                    <button
-                      onClick={() => startMachine(machine.id)}
-                      disabled={machine.status === 'running'}
-                      className="p-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Play className="h-4 w-4" />
-                    </button>
-                    
-                    {/* Status Bar */}
-                    <div className="flex-1 h-8 rounded-full border-2 border-gray-300 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${
-                          machine.status === 'running' ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
-                        style={{ width: machine.status === 'running' ? '100%' : '0%' }}
-                      />
-                    </div>
-                    
-                    <button
-                      onClick={() => stopMachine(machine.id)}
-                      disabled={machine.status === 'stopped'}
-                      className="p-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Square className="h-4 w-4" />
-                    </button>
-                  </div>
-                  
-                  {/* Machine Data */}
-                  <div className="space-y-1 text-sm">
-                    <div>
-                      <span className="text-gray-500">Throughput:</span>
-                      <span className="font-medium ml-1">{machine.throughput} t/h</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Power:</span>
-                      <span className="font-medium ml-1">{machine.powerDraw} MW</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Efficiency:</span>
-                      <span className="font-medium ml-1">{machine.efficiency}%</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Temperature:</span>
-                      <span className="font-medium ml-1">{machine.temperature}°C</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Vibration:</span>
-                      <span className="font-medium ml-1">{machine.vibration} mm/s</span>
-                    </div>
-                    <div className="pt-1 border-t border-gray-200">
-                      <span className="text-gray-500">Status:</span>
-                      <span className={`font-medium ml-1 capitalize ${
-                        machine.status === 'running' ? 'text-green-600' :
-                        machine.status === 'maintenance' ? 'text-yellow-600' : 'text-red-600'
-                      }`}>{machine.status}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            )}
-          </div>
-        )}
-
-        {/* Main Content */}
-        <div className="flex-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="mb-6 space-y-2">
@@ -636,7 +546,6 @@ const UserDashboard: React.FC = () => {
           {activeTab === 'usage' && renderUsage()}
           {activeTab === 'priority' && renderPriority()}
           {activeTab === 'profile' && renderProfile()}
-        </div>
         </div>
       </div>
     </div>

@@ -17,8 +17,8 @@ const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('control');
   const [syncProgress, setSyncProgress] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [showMachineStatus, setShowMachineStatus] = useState(false);
-  const { logout, user } = useAuth();
+  const [showMachineStatus] = useState(false);
+  const { user } = useAuth();
   const { machines, loading } = useMachine();
   const [energyMode, setEnergyMode] = useState('AI Auto Mode');
   const [mlAutoMode, setMlAutoMode] = useState(true);
@@ -28,19 +28,21 @@ const AdminDashboard: React.FC = () => {
     'Conveyor': true,
     'AI System': true
   });
-  const [priorityRequests, setPriorityRequests] = useState([]);
-  const [regionalData, setRegionalData] = useState([]);
+  const [priorityRequests, setPriorityRequests] = useState<any[]>([]);
+  const [regionalData, setRegionalData] = useState<any[]>([]);
+  const [pendingSignups, setPendingSignups] = useState<any[]>([]);
   
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [overview, alerts] = await Promise.all([
+        const [overview, alerts, signups] = await Promise.all([
           api.getAnalyticsOverview(),
-          api.getAnalyticsAlerts()
+          api.getAnalyticsAlerts(),
+          api.getPendingSignups()
         ]);
         
         if (overview.machines.length > 0) {
-          const machineData = overview.machines.map(machine => ({
+          const machineData = overview.machines.map((machine: any) => ({
             region: machine.name,
             usage: Math.round(machine.efficiency),
             trend: machine.efficiency > 80 ? '+5%' : machine.efficiency > 70 ? '+2%' : '-3%'
@@ -49,9 +51,9 @@ const AdminDashboard: React.FC = () => {
           
           // Update system status based on machine status
           const newSystemStatus = {
-            'Crusher': overview.machines.find(m => m.machine_id === 'machine-01')?.status === 'running',
-            'Mill': overview.machines.find(m => m.machine_id === 'machine-02')?.status === 'running',
-            'Conveyor': overview.machines.find(m => m.machine_id === 'machine-03')?.status === 'running',
+            'Crusher': overview.machines.find((m: any) => m.machine_id === 'machine-01')?.status === 'running',
+            'Mill': overview.machines.find((m: any) => m.machine_id === 'machine-02')?.status === 'running',
+            'Conveyor': overview.machines.find((m: any) => m.machine_id === 'machine-03')?.status === 'running',
             'AI System': overview.summary.running_machines > 0
           };
           setSystemStatus(newSystemStatus);
@@ -69,6 +71,10 @@ const AdminDashboard: React.FC = () => {
           }));
           setPriorityRequests(requests);
         }
+        
+        if (signups?.signups) {
+          setPendingSignups(signups.signups);
+        }
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       }
@@ -81,10 +87,9 @@ const AdminDashboard: React.FC = () => {
   
   const updateRequestStatus = (id: number, status: string) => {
     setPriorityRequests(prev => 
-      prev.map(req => req.id === id ? { ...req, status } : req)
+      prev.map((req: any) => req.id === id ? { ...req, status } : req)
     );
   };
-  const navigate = useNavigate();
 
   const energyModes = ['Crusher Only', 'Mill Only', 'Crusher+Mill', 'Full Circuit', 'AI Auto Mode'];
 
@@ -237,8 +242,53 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
+  const handleApproveSignup = async (signupId: string) => {
+    try {
+      await api.approveSignup(signupId);
+      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
+      alert('Operator approved successfully!');
+    } catch (error: any) {
+      alert('Failed to approve: ' + error.message);
+    }
+  };
+
+  const handleRejectSignup = async (signupId: string) => {
+    try {
+      await api.rejectSignup(signupId);
+      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
+      alert('Operator signup rejected!');
+    } catch (error: any) {
+      alert('Failed to reject: ' + error.message);
+    }
+  };
+
   const renderPriorityManagement = () => (
     <div className="space-y-6">
+      {pendingSignups.length > 0 && (
+        <Panel title="Pending Operator Approvals">
+          <div className="space-y-4">
+            {pendingSignups.map(signup => (
+              <div key={signup._id} className="flex items-start justify-between rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-semibold">{signup.username}</h4>
+                    <Badge tone="warning" soft>Pending Approval</Badge>
+                  </div>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">Employee ID: {signup.emp_id}</p>
+                  <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                    <Clock className="h-3 w-3" />
+                    <span>{new Date(signup.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <Button size="sm" variant="primary" onClick={() => handleApproveSignup(signup._id)} iconLeft={<CheckCircle className="h-4 w-4" />}>Approve</Button>
+                  <Button size="sm" variant="danger" onClick={() => handleRejectSignup(signup._id)} iconLeft={<XCircle className="h-4 w-4" />}>Reject</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
       <Panel title="Equipment Priority Management">
         <div className="space-y-4">
           {priorityRequests.map(request => (
@@ -399,48 +449,7 @@ const AdminDashboard: React.FC = () => {
   return (
   <div className="min-h-screen bg-neutral-100 dark:bg-neutral-900">
       {/* Header */}
-  <div className="bg-neutral-50 dark:bg-neutral-800 shadow-sm border-b border-gray-200 dark:border-neutral-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-xl font-semibold text-primary">Mining Engineer Dashboard</h1>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowMachineStatus(!showMachineStatus)}
-                className="p-2 text-secondary hover:text-primary"
-                title="Machine Status"
-              >
-                <Monitor className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => navigate('/admin/user-logs')}
-                className="p-2 text-secondary hover:text-primary"
-                title="User Logs"
-              >
-                <Users className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => navigate('/chatbot')}
-                className="p-2 text-secondary hover:text-primary"
-              >
-                <MessageCircle className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => navigate('/digital-twin')}
-                className="p-2 text-secondary hover:text-primary"
-                title="Digital Twin"
-              >
-                <Eye className="h-5 w-5" />
-              </button>
-              <button
-                onClick={logout}
-                className="p-2 text-secondary hover:text-danger"
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex gap-6">
         {/* Machine Status Side Panel - Toggleable */}

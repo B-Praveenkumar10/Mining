@@ -80,4 +80,7 @@ export const api = {
   getAnalyticsTrends: analyticsAPI.getTrends,
   getAnalyticsBreakdown: analyticsAPI.getBreakdown,
   getAnalyticsAlerts: analyticsAPI.getAlerts,
+  getPendingSignups: () => apiRequest('/auth/pending-signups'),
+  approveSignup: (signupId: string) => apiRequest(`/auth/approve-signup/${signupId}`, { method: 'POST' }),
+  rejectSignup: (signupId: string) => apiRequest(`/auth/reject-signup/${signupId}`, { method: 'POST' }),
 };

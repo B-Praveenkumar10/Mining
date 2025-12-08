@@ -39,6 +39,43 @@ const LoginScreen: React.FC = () => {
     setShowLoginForm(true);
   };
 
+  const [showSignup, setShowSignup] = useState(false);
+  const [signupData, setSignupData] = useState({ username: '', password: '', confirmPassword: '', emp_id: '' });
+  const [signupError, setSignupError] = useState('');
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError('');
+
+    if (signupData.password !== signupData.confirmPassword) {
+      setSignupError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/api'}/auth/operator-signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: signupData.username,
+          password: signupData.password,
+          emp_id: signupData.emp_id
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
+      alert(data.message);
+      setShowSignup(false);
+      setSignupData({ username: '', password: '', confirmPassword: '', emp_id: '' });
+    } catch (error: any) {
+      setSignupError(error.message);
+    }
+    setIsLoading(false);
+  };
+
   return (
   <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-50 dark:bg-neutral-900 dark:bg-[radial-gradient(circle_at_40%_20%,#1f2937,transparent)] bg-[radial-gradient(circle_at_40%_20%,#f1f5f9,transparent)]">
       <div className="max-w-lg w-full space-y-8">
@@ -54,7 +91,7 @@ const LoginScreen: React.FC = () => {
           <p className="text-secondary text-lg opacity-90">AI-Powered Mining Energy Optimization</p>
         </div>
 
-        {!showLoginForm ? (
+        {!showLoginForm && !showSignup ? (
           <div className="space-y-4">
             <button
               onClick={() => handleRoleSelect('operator')}
@@ -84,6 +121,73 @@ const LoginScreen: React.FC = () => {
               </div>
             </button>
           </div>
+        ) : showSignup ? (
+          <div className="space-y-4">
+            <div className="rounded-xl p-6 shadow-soft bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+              <h3 className="text-lg font-semibold mb-4 text-primary">Operator Sign Up</h3>
+              <form onSubmit={handleSignup}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Username</label>
+                    <input
+                      type="text"
+                      value={signupData.username}
+                      onChange={(e) => setSignupData({...signupData, username: e.target.value})}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Employee ID</label>
+                    <input
+                      type="text"
+                      value={signupData.emp_id}
+                      onChange={(e) => setSignupData({...signupData, emp_id: e.target.value})}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Password</label>
+                    <input
+                      type="password"
+                      value={signupData.password}
+                      onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-secondary mb-2">Confirm Password</label>
+                    <input
+                      type="password"
+                      value={signupData.confirmPassword}
+                      onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                  {signupError && <p className="text-red-500 text-sm">{signupError}</p>}
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowSignup(false); setSignupError(''); }}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-500 disabled:opacity-50"
+                    >
+                      {isLoading ? 'Submitting...' : 'Sign Up'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             <div className="rounded-xl p-6 shadow-soft bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
@@ -91,8 +195,8 @@ const LoginScreen: React.FC = () => {
               <form onSubmit={(e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target as HTMLFormElement);
+                const username = formData.get('username') as string;
                 const password = formData.get('password') as string;
-                const username = selectedRole === 'operator' ? 'operator1' : 'engineer1';
                 handleLogin(username, password);
               }}>
                 <div className="space-y-4">
@@ -100,9 +204,10 @@ const LoginScreen: React.FC = () => {
                     <label className="block text-sm font-medium text-secondary mb-2">Username</label>
                     <input
                       type="text"
-                      value={selectedRole === 'operator' ? 'operator1' : 'engineer1'}
-                      disabled
-                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-primary dark:text-secondary"
+                      name="username"
+                      placeholder={selectedRole === 'operator' ? 'operator1' : 'engineer1'}
+                      className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-600 rounded-lg bg-neutral-50 dark:bg-neutral-700 text-primary dark:text-secondary focus:ring-2 focus:ring-indigo-500"
+                      required
                     />
                   </div>
                   <div>
@@ -131,6 +236,17 @@ const LoginScreen: React.FC = () => {
                       {isLoading ? 'Logging in...' : 'Login'}
                     </button>
                   </div>
+                  {selectedRole === 'operator' && (
+                    <div className="text-center pt-2">
+                      <button
+                        type="button"
+                        onClick={() => { setShowLoginForm(false); setShowSignup(true); }}
+                        className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
+                      >
+                        Don't have an account? Sign Up
+                      </button>
+                    </div>
+                  )}
                 </div>
               </form>
             </div>
