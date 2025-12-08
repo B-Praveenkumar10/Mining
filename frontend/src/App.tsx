@@ -10,6 +10,8 @@ import AdminUserLogs from './components/AdminUserLogs';
 import WhatsAppIntegration from './components/WhatsAppIntegration';
 import ChatbotWidget from './components/ChatbotWidget';
 import DigitalTwin from './components/DigitalTwin';
+import Simulate from './pages/Simulate';
+import Graph from './pages/Graph';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -42,6 +44,8 @@ const AppContent: React.FC = () => {
         <Route path="/whatsapp" element={<WhatsAppIntegration />} />
         <Route path="/chatbot" element={<ChatbotWidget />} />
         <Route path="/digital-twin" element={<DigitalTwin />} />
+        <Route path="/simulate" element={<Simulate />} />
+        <Route path="/graph" element={<Graph />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </LayoutShell>

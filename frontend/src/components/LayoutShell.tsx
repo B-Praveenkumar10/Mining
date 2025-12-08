@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Users, Eye, Play, Square, Cog, Bell, CheckCircle, XCircle } from 'lucide-react';
+import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Users, Eye, Play, Square, Bell, CheckCircle, XCircle, Activity, BarChart3 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMachine } from '../contexts/MachineProvider';
 import { api } from '../services/api';
@@ -22,6 +22,8 @@ const navigation = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/chatbot', label: 'Chatbot', icon: MessageCircle },
   { to: '/digital-twin', label: 'Digital Twin', icon: Eye },
+  { to: '/simulate', label: 'Simulation', icon: Activity },
+  { to: '/graph', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/user-logs', label: 'User Logs', icon: Users },
 ];
 
@@ -38,7 +40,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
   const [signupsLoading, setSignupsLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (user?.role === 'engineer') {
+    if (user?.role === 'admin') {
       const fetchSignups = async () => {
         try {
           setSignupsLoading(true);
@@ -92,8 +94,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 flex">
-      {/* Sidebar - Hidden for Mining Engineer */}
-      {user?.role !== 'engineer' && (
+      {/* Sidebar */}
       <aside
         className={`hidden md:flex flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-900/80 backdrop-blur-sm shadow-glass fixed inset-y-0 left-0 z-30 transition-all duration-200 ease-in-out ${
           collapsed ? 'w-20' : 'w-60'
@@ -168,10 +169,9 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
 
         </div>
       </aside>
-      )}
 
       {/* Main content area */}
-      <div className={`flex-1 flex flex-col ${user?.role !== 'engineer' ? (collapsed ? 'md:ml-20' : 'md:ml-60') : ''}`}>
+      <div className={`flex-1 flex flex-col ${collapsed ? 'md:ml-20' : 'md:ml-60'}`}>
         {/* Top bar */}
         <header className="h-14 flex items-center justify-between px-4 border-b border-neutral-200 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/70 backdrop-blur supports-[backdrop-filter]:bg-white/50 sticky top-0 z-40">
           <div className="flex items-center gap-3 md:hidden">
@@ -182,7 +182,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             <span className="text-sm font-medium">{user?.name}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {user?.role === 'engineer' && pendingSignups.length > 0 && (
+            {user?.role === 'admin' && pendingSignups.length > 0 && (
               <div className="relative">
                 <Bell className="h-5 w-5 text-amber-500" />
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -193,7 +193,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
             <button
               onClick={() => setShowSidePane(!showSidePane)}
               className="p-2 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              title={user?.role === 'engineer' ? 'Machine Records & Approvals' : 'Machine Controls'}
+              title={user?.role === 'admin' ? 'Machine Records & Approvals' : 'Machine Controls'}
             >
               <Monitor className="h-5 w-5" />
             </button>
@@ -210,14 +210,14 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold flex items-center">
                   <Monitor className="h-4 w-4 mr-2" />
-                  {user?.role === 'engineer' ? 'Records & Approvals' : 'Machine Controls'}
+                  {user?.role === 'admin' ? 'Records & Approvals' : 'Machine Controls'}
                 </h3>
                 <button onClick={() => setShowSidePane(false)} className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded">
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
               
-              {user?.role === 'engineer' && pendingSignups.length > 0 && (
+              {user?.role === 'admin' && pendingSignups.length > 0 && (
                 <div className="mb-4 space-y-2">
                   <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Bell className="h-3 w-3" /> Pending Approvals ({pendingSignups.length})
@@ -300,7 +300,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                           }`}>{machine.status}</span>
                         </div>
                       </div>
-                      {user?.role !== 'engineer' && (
+                      {user?.role !== 'admin' && (
                         <div className="mt-3 space-y-2">
                           <div className="flex gap-2">
                             <button
