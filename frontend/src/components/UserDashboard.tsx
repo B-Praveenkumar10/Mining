@@ -248,8 +248,8 @@ const UserDashboard: React.FC = () => {
           <Battery className="h-8 w-8 text-gray-600" />
           <div className="flex-1">
             <div className="flex justify-between items-center mb-2">
-              <span>Efficiency: {dashboardData.efficiency}%</span>
-              <span>Status: {dashboardData.operationalStatus}%</span>
+              <span>Efficiency: {fmtPct(dashboardData.efficiency)}</span>
+              <span>Status: {fmtPct(dashboardData.operationalStatus)}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div 
