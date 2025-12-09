@@ -1,91 +1,194 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Send, Bot, User } from 'lucide-react';
+import { ChevronLeft, Send, Mic, MicOff, Globe, MoreVertical, Trash2, Save, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { chatWithGemini, type ChatMessage } from '../api/gemini';
+import ReactMarkdown from 'react-markdown';
+import { api } from '../services/api';
+import { useSavedReports } from '../contexts/SavedReportsContext';
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
   timestamp: Date;
+  hasReportButton?: boolean;
+  reportDates?: { startDate?: string; endDate?: string };
+}
+
+// Helper to detect report request and extract date range
+function detectReportRequest(text: string): { isReport: boolean; startDate?: string; endDate?: string } {
+  const lowerText = text.toLowerCase();
+  
+  // Keywords that indicate a report request
+  const reportKeywords = [
+    'report', 'analysis report', 'analytics report', 'pdf', 'download',
+    'generate report', 'create report', 'give me report', 'export',
+    'complete analysis', 'full report', 'detailed report', 'summary report'
+  ];
+  
+  const isReport = reportKeywords.some(keyword => lowerText.includes(keyword));
+  
+  if (!isReport) return { isReport: false };
+  
+  // Try to extract date ranges
+  const today = new Date();
+  let startDate: string | undefined;
+  let endDate: string | undefined = today.toISOString().split('T')[0];
+  
+  // Check for "last X days/weeks/months"
+  const lastMatch = lowerText.match(/last\s+(\d+)\s*(day|week|month|year)s?/);
+  if (lastMatch) {
+    const num = parseInt(lastMatch[1]);
+    const unit = lastMatch[2];
+    const start = new Date(today);
+    
+    if (unit === 'day') start.setDate(start.getDate() - num);
+    else if (unit === 'week') start.setDate(start.getDate() - (num * 7));
+    else if (unit === 'month') start.setMonth(start.getMonth() - num);
+    else if (unit === 'year') start.setFullYear(start.getFullYear() - num);
+    
+    startDate = start.toISOString().split('T')[0];
+  }
+  
+  // Check for specific month mentions
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                      'july', 'august', 'september', 'october', 'november', 'december'];
+  monthNames.forEach((month, index) => {
+    if (lowerText.includes(month)) {
+      const year = today.getFullYear();
+      startDate = `${year}-${String(index + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, index + 1, 0).getDate();
+      endDate = `${year}-${String(index + 1).padStart(2, '0')}-${lastDay}`;
+    }
+  });
+  
+  // Default to last 2 months if no specific range found but report requested
+  if (!startDate) {
+    const start = new Date(today);
+    start.setMonth(start.getMonth() - 2);
+    startDate = start.toISOString().split('T')[0];
+  }
+  
+  return { isReport: true, startDate, endDate };
 }
 
 const ChatbotWidget: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Hello! I\'m your AI Mining Assistant. I can help you with crushing optimization, grinding efficiency, predictive maintenance, Digital Twin simulation, equipment monitoring, and AI-driven process control. How can I assist you today?',
+      text: 'Welcome to Mining Optimizer Support. How can I assist you today?',
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [language, setLanguage] = useState<'en' | 'hi'>('en');
+  const [isListening, setIsListening] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = language === 'hi' ? 'hi-IN' : 'en-US';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInputText(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => setIsListening(false);
+      recognitionRef.current.onerror = () => setIsListening(false);
+    }
+  }, [language]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser.');
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.lang = language === 'hi' ? 'hi-IN' : 'en-US';
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
   };
+
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const smartResponses = {
-    crushing: {
-      keywords: ['crush', 'crusher', 'jaw', 'cone', 'impact'],
-      response: 'Crushing Operations Optimization 🔨\n\n• AI-controlled feed rate adjustment\n• Real-time ore hardness monitoring\n• Predictive wear pattern analysis\n• Energy consumption: 1.5-3 kWh/ton\n• Optimal CSS settings for efficiency\n\nWould you like to know about crusher maintenance or energy optimization?'
-    },
-    grinding: {
-      keywords: ['grind', 'mill', 'ball', 'sag', 'rod'],
-      response: 'Grinding Circuit Optimization ⚙️\n\n• Ball mill efficiency: 15-25 kWh/ton\n• SAG mill optimization: 8-15 kWh/ton\n• Optimal grinding media selection\n• Particle size distribution control\n• Mill liner wear monitoring\n\nGrinding accounts for 50% of comminution energy!'
-    },
-    maintenance: {
-      keywords: ['maintenance', 'predictive', 'wear', 'repair', 'schedule'],
-      response: 'Predictive Maintenance System 🔧\n\n🔸 AI-Powered Predictions:\n• Bearing failure: 95% accuracy\n• Liner wear: Real-time monitoring\n• Vibration analysis: Continuous\n\n🔸 Cost Savings:\n• Unplanned downtime: -60%\n• Maintenance costs: -30%\n• Equipment life: +25%\n\nContact: Mining Control Room for scheduling'
-    },
-    emergency: {
-      keywords: ['emergency', 'contact', 'help', 'support', 'number'],
-      response: 'Emergency Contacts 📞\n\n🚨 Mining Control Room: 1912\n🔧 Technical Support: 1800-180-1912\n⚡ Equipment Emergency: 1800-11-0001\n🏥 Medical Emergency: 108\n🔥 Fire Safety: 101\n\nAll helplines are available 24/7!'
-    },
-    efficiency: {
-      keywords: ['points', 'earn', 'reward', 'leaderboard', 'ranking', 'efficiency'],
-      response: 'Efficiency Points System 🏆\n\n⚡ Earning Points:\n• Energy savings: 10 points per kWh\n• Throughput increase: 8 points per ton\n• Downtime reduction: 5 points per hour\n• Maintenance optimization: 3 points per task\n\n🎯 Bonus Points:\n• Daily efficiency >80%: 50 bonus points\n• Weekly targets: 100-500 points\n• Process improvements: 200 points each\n\nCheck leaderboard to see your ranking!'
-    },
-    optimization: {
-      keywords: ['optimize', 'efficiency', 'save', 'reduce', 'tips'],
-      response: 'Process Optimization Tips 💡\n\n🔨 Crushing Optimization:\n• Feed size control: Uniform distribution\n• CSS adjustment: Real-time monitoring\n• Load balancing: Prevent overloading\n\n⚙️ Grinding Optimization:\n• Mill speed: 75-85% critical speed\n• Ball charge: 30-40% mill volume\n• Pulp density: 65-75% solids\n\n📊 Energy Management:\n• Peak load shifting: Off-peak operations\n• Variable frequency drives: Speed control\n• Power factor correction: Reactive power'
-    },
-    energy: {
-      keywords: ['battery', 'storage', 'backup', 'charge', 'discharge', 'energy'],
-      response: 'Energy Storage & Management 🔋\n\n💡 Industrial Battery Systems:\n• 10-15 year lifespan\n• 90%+ round-trip efficiency\n• Fast response capability\n• Minimal maintenance\n\n💰 Cost Benefits:\n• Peak shaving: 20-30% savings\n• Load balancing: 15% efficiency gain\n• Backup power: Uninterrupted operations\n\n⚡ Recommended Capacity:\n• Small operations: 500-1000 kWh\n• Medium mines: 2-5 MWh\n• Large operations: 10+ MWh'
-    },
-    digitaltwin: {
-      keywords: ['digital', 'twin', 'simulation', 'virtual', 'video', 'ore', 'journey'],
-      response: 'Digital Twin - Virtual Ore Journey 👁️\n\n🎥 Upload Process:\n• Upload conveyor belt video\n• AI analyzes ore characteristics\n• Detects size, hardness, moisture\n• Classifies ore type automatically\n\n🔮 Simulation Features:\n• Virtual processing walkthrough\n• Stage-by-stage energy prediction\n• Throughput estimation\n• Equipment performance modeling\n\n📊 Predictions Include:\n• Crushing power requirements\n• Grinding energy consumption\n• Final product size distribution\n• Overall plant efficiency\n\nAccess via the Digital Twin page!'
-    }
+  const clearChat = () => {
+    setMessages([{
+      id: Date.now().toString(),
+      text: language === 'hi' ? 'Chat cleared. How can I help you?' : 'Chat cleared. How can I help you?',
+      sender: 'bot',
+      timestamp: new Date()
+    }]);
+    setShowMenu(false);
   };
 
-  const getSmartResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    
-  for (const [, data] of Object.entries(smartResponses)) {
-      if (data.keywords.some(keyword => lowerMessage.includes(keyword))) {
-        return data.response;
-      }
+  const [isSavingReport, setIsSavingReport] = useState(false);
+  const [savedMessageIds, setSavedMessageIds] = useState<Set<string>>(new Set());
+  const { saveReport } = useSavedReports();
+
+  const handleSaveReport = async (messageId: string, startDate?: string, endDate?: string, summaryText?: string) => {
+    setIsSavingReport(true);
+    try {
+      // Generate report title based on date range
+      const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const title = startDate && endDate 
+        ? `Report: ${formatDate(startDate)} - ${formatDate(endDate)}`
+        : `Report: ${new Date().toLocaleDateString()}`;
+
+      saveReport({
+        title,
+        dateRange: { startDate, endDate },
+        summary: summaryText || 'Analytics report'
+      });
+
+      // Mark this message as saved
+      setSavedMessageIds(prev => new Set([...prev, messageId]));
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: language === 'hi' 
+          ? '✅ रिपोर्ट सफलतापूर्वक सेव हो गई! आप इसे बाएं मेनू में "Saved Reports" में देख सकते हैं।'
+          : '✅ Report saved successfully! You can view it in "Saved Reports" in the left menu.',
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        text: language === 'hi'
+          ? '❌ रिपोर्ट सेव करने में त्रुटि। कृपया पुनः प्रयास करें।'
+          : '❌ Failed to save report. Please try again.',
+        sender: 'bot',
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsSavingReport(false);
     }
-    
-    // Default responses for common queries
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-      return 'Hello! I\'m here to help with all your mining operations questions. You can ask me about crushing optimization, grinding efficiency, predictive maintenance, Digital Twin simulation, emergency contacts, or process optimization tips. What would you like to know?';
-    }
-    
-    if (lowerMessage.includes('thank')) {
-      return 'You\'re welcome! I\'m always here to help with your mining optimization journey. Feel free to ask if you have more questions! 😊';
-    }
-    
-    return 'I can help you with:\n\n🔨 Crushing optimization\n⚙️ Grinding efficiency\n🔧 Predictive maintenance\n👁️ Digital Twin simulation\n📞 Emergency contacts\n🏆 Efficiency points\n💡 Process optimization\n🔋 Energy management\n🤖 AI control systems\n\nPlease ask me about any of these topics!';
   };
 
   const handleSendMessage = async () => {
@@ -99,40 +202,92 @@ const ChatbotWidget: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputText;
     setInputText('');
     setIsTyping(true);
 
+    // Check if this is a report request
+    const reportRequest = detectReportRequest(currentInput);
+
     try {
-      // Try backend AI chat first
-      const history: ChatMessage[] = messages.map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text,
-      }));
-      const aiText = await chatWithGemini([...history, { role: 'user', content: inputText }], {
-        system: 'You are an AI Mining Assistant. Be concise, actionable and mining-domain aware.',
-      });
-      const botResponse: Message = {
+      if (reportRequest.isReport) {
+        // Fetch summary data for the AI to describe
+        let summaryText = '';
+        try {
+          const summaryData = await api.getReportSummary(reportRequest.startDate, reportRequest.endDate);
+          const s = summaryData.summary;
+          summaryText = `
+Based on the analytics data (${summaryData.recordCount} records):
+- Average Throughput: ${s.avgThroughput} Tons/Hr
+- Average Efficiency: ${s.avgEfficiency}%
+- System Uptime: ${s.uptimePercent}%
+- Total Power Consumption: ${s.totalPowerConsumption} kW
+- Solar Energy Usage: ${s.avgSolarEnergy}%
+- Thermal Energy Usage: ${s.avgThermalEnergy}%
+- Planned Downtime: ${s.plannedDowntime} hours
+- Unplanned Downtime: ${s.unplannedDowntime} hours
+- Total Alerts: ${s.alertCount}
+`;
+        } catch {
+          summaryText = 'Analytics data is available for report generation.';
+        }
+
+        // Get AI response about the report
+        const history: ChatMessage[] = messages.map(m => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }));
+        
+        const reportPrompt = language === 'hi'
+          ? `User ने रिपोर्ट का अनुरोध किया है। Date range: ${reportRequest.startDate} to ${reportRequest.endDate}. ${summaryText}\n\nPlease summarize this data briefly in Hindi and tell the user you're preparing their PDF report for download.`
+          : `User has requested a report. Date range: ${reportRequest.startDate} to ${reportRequest.endDate}. ${summaryText}\n\nPlease summarize this data briefly and tell the user you're preparing their comprehensive PDF report for download.`;
+
+        const aiText = await chatWithGemini([...history, { role: 'user', content: reportPrompt }], {
+          system: language === 'hi' 
+            ? 'You are an AI Mining Assistant. Respond in Hindi. Summarize the analytics data and inform user their PDF report is being prepared.'
+            : 'You are an AI Mining Assistant. Summarize the analytics data concisely and inform the user their PDF report is being generated.',
+        });
+
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: aiText,
+          sender: 'bot',
+          timestamp: new Date(),
+          hasReportButton: true,
+          reportDates: { startDate: reportRequest.startDate, endDate: reportRequest.endDate }
+        }]);
+        
+      } else {
+        // Regular chat message
+        const history: ChatMessage[] = messages.map(m => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }));
+        const aiText = await chatWithGemini([...history, { role: 'user', content: currentInput }], {
+          system: language === 'hi' 
+            ? 'You are an AI Mining Assistant. Always respond in Hindi (Devanagari script). Be concise, actionable and mining-domain aware.'
+            : 'You are an AI Mining Assistant. Always respond in English. Be concise, actionable and mining-domain aware.',
+        });
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          text: aiText,
+          sender: 'bot',
+          timestamp: new Date()
+        }]);
+      }
+    } catch {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: aiText,
+        text: language === 'hi' ? 'Sorry, something went wrong. Please try again.' : 'Sorry, something went wrong. Please try again.',
         sender: 'bot',
         timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botResponse]);
-    } catch (e) {
-      // Fallback to local smartResponses
-      const botResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: getSmartResponse(inputText),
-        sender: 'bot',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botResponse]);
+      }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -140,110 +295,176 @@ const ChatbotWidget: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-full flex flex-col bg-neutral-50 dark:bg-neutral-900 overflow-hidden">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <button
-              onClick={() => navigate(-1)}
-              className="mr-4 p-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center">
-                <Bot className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-800">AI Mining Assistant</h1>
-                <p className="text-sm text-gray-600">Always here to help</p>
-              </div>
+      <header className="flex-shrink-0 h-14 px-4 flex items-center justify-between bg-white dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-sm font-semibold">
+              AI
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">Mining Assistant</h1>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Online
+              </p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-xl shadow-sm border h-full flex flex-col">
-          <div className="flex-1 p-6 overflow-y-auto space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`flex items-start space-x-3 max-w-xs lg:max-w-md ${
-                  message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-                }`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    message.sender === 'user' 
-                      ? 'bg-blue-500' 
-                      : 'bg-gradient-to-r from-green-400 to-blue-500'
-                  }`}>
-                    {message.sender === 'user' ? (
-                      <User className="h-4 w-4 text-white" />
-                    ) : (
-                      <Bot className="h-4 w-4 text-white" />
-                    )}
-                  </div>
-                  <div className={`px-4 py-3 rounded-2xl ${
-                    message.sender === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    <p className="text-sm whitespace-pre-line">{message.text}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="flex items-start space-x-3 max-w-xs lg:max-w-md">
-                  <div className="w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="px-4 py-3 bg-gray-100 rounded-2xl">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    </div>
-                  </div>
-                </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-colors"
+            title={language === 'en' ? 'Switch to Hindi' : 'Switch to English'}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {language === 'en' ? 'EN' : 'HI'}
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg shadow-lg py-1 z-50">
+                <button
+                  onClick={clearChat}
+                  className="w-full px-3 py-2 text-left text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear chat
+                </button>
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <div className="border-t p-4">
-            <div className="flex items-center space-x-3">
-              <input
-                type="text"
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me about crushing, grinding, Digital Twin, or AI optimization..."
-                className="flex-1 px-4 py-3 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputText.trim() || isTyping}
-                className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="h-5 w-5" />
-              </button>
-            </div>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Messages */}
+      <main className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+        <div className="max-w-2xl mx-auto space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] ${
+                  message.sender === 'user'
+                    ? 'bg-emerald-600 text-white rounded-2xl rounded-br-md'
+                    : 'bg-white dark:bg-neutral-800 text-neutral-800 dark:text-neutral-100 rounded-2xl rounded-bl-md border border-neutral-200 dark:border-neutral-700'
+                } px-4 py-2.5 shadow-sm`}
+              >
+                {message.sender === 'bot' ? (
+                  <div className="text-sm prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5 prose-strong:font-semibold">
+                    <ReactMarkdown>{message.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm">{message.text}</p>
+                )}
+                
+                {/* Save Report Button */}
+                {message.hasReportButton && (
+                  <button
+                    onClick={() => handleSaveReport(message.id, message.reportDates?.startDate, message.reportDates?.endDate, message.text)}
+                    disabled={isSavingReport || savedMessageIds.has(message.id)}
+                    className={`mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-medium rounded-xl transition-all shadow-md hover:shadow-lg ${
+                      savedMessageIds.has(message.id)
+                        ? 'bg-green-500 cursor-default'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                    }`}
+                  >
+                    {savedMessageIds.has(message.id) ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        {language === 'hi' ? 'रिपोर्ट सेव हो गई' : 'Report Saved'}
+                      </>
+                    ) : isSavingReport ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        {language === 'hi' ? 'सेव हो रही है...' : 'Saving...'}
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {language === 'hi' ? 'रिपोर्ट सेव करें' : 'Save Report'}
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                <p className={`text-[10px] mt-1 ${message.sender === 'user' ? 'text-emerald-200' : 'text-neutral-400'}`}>
+                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <span className="w-2 h-2 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      {/* Input */}
+      <footer className="flex-shrink-0 bg-white dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 px-4 py-3">
+        <div className="max-w-2xl mx-auto flex items-center gap-2">
+          <button
+            onClick={toggleListening}
+            disabled={isTyping}
+            className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              isListening
+                ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+                : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'
+            } disabled:opacity-50`}
+            title={isListening ? 'Stop' : 'Voice input'}
+          >
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
+
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isListening ? 'Listening...' : language === 'hi' ? 'Type your message...' : 'Type your message...'}
+              className="w-full px-4 py-2.5 pr-12 bg-neutral-100 dark:bg-neutral-700 border-0 rounded-full text-sm text-neutral-800 dark:text-neutral-100 placeholder-neutral-500 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!inputText.trim() || isTyping}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <p className="max-w-2xl mx-auto mt-2 text-[10px] text-neutral-400 text-center">
+          AI assistant may make mistakes. Verify important information.
+        </p>
+      </footer>
     </div>
   );
 };

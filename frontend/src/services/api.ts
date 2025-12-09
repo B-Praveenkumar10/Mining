@@ -85,4 +85,47 @@ export const api = {
   getPendingSignups: () => apiRequest('/auth/pending-signups'),
   approveSignup: (signupId: string) => apiRequest(`/auth/approve-signup/${signupId}`, { method: 'POST' }),
   rejectSignup: (signupId: string) => apiRequest(`/auth/reject-signup/${signupId}`, { method: 'POST' }),
+  getReportSummary: (startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return apiRequest(`/reports/summary?${params.toString()}`);
+  },
+};
+
+// Report generation - returns blob for download
+export const generateReport = async (startDate?: string, endDate?: string): Promise<Blob> => {
+  const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/api';
+  const response = await fetch(`${API_BASE}/reports/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ startDate, endDate, reportType: 'comprehensive' }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to generate report: ${errorText}`);
+  }
+  
+  return response.blob();
+};
+
+// Helper to trigger PDF download
+export const downloadReport = async (startDate?: string, endDate?: string): Promise<void> => {
+  try {
+    const blob = await generateReport(startDate, endDate);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `mining_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download report:', error);
+    throw error;
+  }
 };

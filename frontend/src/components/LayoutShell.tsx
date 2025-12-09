@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Play, Square, Bell, CheckCircle, XCircle, Activity, BarChart3, Box } from 'lucide-react';
+import { LayoutDashboard, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Play, Square, Bell, CheckCircle, XCircle, Activity, BarChart3, Box, Calculator, Bot, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMachine } from '../contexts/MachineProvider';
 import { api } from '../services/api';
+import { useSavedReports } from '../contexts/SavedReportsContext';
 
 // Simple dark mode toggler using a class on <html>
 function useColorMode() {
@@ -20,10 +21,25 @@ function useColorMode() {
 
 const navigation = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/report', label: 'Report', icon: BarChart3 },
   { to: '/simulate', label: 'Simulation', icon: Activity },
   { to: '/graph', label: 'Analytics', icon: BarChart3 },
   { to: '/crusher-simulation', label: 'Crusher 3D', icon: Box },
+  { to: '/pricing', label: 'Pricing', icon: Calculator },
+  { to: '/assistant', label: 'Assistant', icon: Bot },
+  { to: '/saved-reports', label: 'Saved Reports', icon: FileText },
 ];
+
+// Badge component for saved reports count
+const SavedReportsBadge: React.FC = () => {
+  const { savedReports } = useSavedReports();
+  if (savedReports.length === 0) return null;
+  return (
+    <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded-full min-w-[18px] text-center">
+      {savedReports.length}
+    </span>
+  );
+};
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -122,6 +138,7 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
         <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
           {navigation.map(item => {
             const Icon = item.icon;
+            const isSavedReports = item.to === '/saved-reports';
             return (
               <NavLink
                 key={item.to}
@@ -136,11 +153,14 @@ const LayoutShell: React.FC<LayoutShellProps> = ({ children }) => {
                 }
               >
                 <Icon className="h-4 w-4 text-neutral-500 group-hover:text-brand-600" />
-                <span className={`${collapsed ? 'hidden' : 'inline'}`}>{item.label}</span>
+                <span className={`${collapsed ? 'hidden' : 'inline'} flex-1`}>{item.label}</span>
+                {isSavedReports && !collapsed && <SavedReportsBadge />}
               </NavLink>
             );
           })}
         </nav>
+
+        {/* Assistant available via main navigation */}
 
         <div className="p-3 space-y-2 border-t border-neutral-200 dark:border-neutral-800 shrink-0">
           <button

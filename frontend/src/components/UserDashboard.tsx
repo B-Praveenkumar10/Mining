@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { 
-  Home, Activity, LogOut,
+  LogOut,
   Sun, Wind, Battery, Zap, Phone
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, AreaChart, Area, Tooltip, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
 const UserDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab] = useState('dashboard');
   const { logout } = useAuth();
+  // Enable dummy simulation regardless of backend availability
+  const [simulateDummy] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     efficiency: 0,
     totalPower: 0,
@@ -19,6 +21,10 @@ const UserDashboard: React.FC = () => {
   });
   const [trendsData, setTrendsData] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
+  // Formatting helpers
+  const fmtPct = (n: number, d: number = 1) => `${n.toFixed(d)}%`;
+  const fmtKW = (n: number, d: number = 1) => `${n.toFixed(d)} kW`;
+  const fmtTH = (n: number, d: number = 1) => `${n.toFixed(d)} t/h`;
   
   useEffect(() => {
     if (activeTab === 'analytics') {
@@ -40,48 +46,103 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        const [overview, trends] = await Promise.all([
-          api.getAnalyticsOverview(),
-          api.getAnalyticsTrends(),
-        ]);
-        
-        setDashboardData({
-          efficiency: overview.summary.avg_efficiency,
-          totalPower: overview.summary.total_power_kw,
-          totalThroughput: overview.summary.total_throughput,
-          operationalStatus: overview.summary.operational_status,
-          runningMachines: overview.summary.running_machines
-        });
-        
-        // Combine all machine trends for chart
-        const combinedTrends = [];
-        for (let i = 0; i < 24; i++) {
-          let totalPower = 0;
-          let totalThroughput = 0;
-          trends.trends.forEach((machine: any) => {
-            if (machine.hourly_data[i]) {
-              totalPower += machine.hourly_data[i].power;
-              totalThroughput += machine.hourly_data[i].throughput;
-            }
+        if (!simulateDummy) {
+          const [overview, trends] = await Promise.all([
+            api.getAnalyticsOverview(),
+            api.getAnalyticsTrends(),
+          ]);
+          setDashboardData({
+            efficiency: overview.summary.avg_efficiency,
+            totalPower: overview.summary.total_power_kw,
+            totalThroughput: overview.summary.total_throughput,
+            operationalStatus: overview.summary.operational_status,
+            runningMachines: overview.summary.running_machines
           });
-          combinedTrends.push({
+          // Combine all machine trends for chart
+          const combinedTrends:any[] = [];
+          for (let i = 0; i < 24; i++) {
+            let totalPower = 0;
+            let totalThroughput = 0;
+            trends.trends.forEach((machine: any) => {
+              if (machine.hourly_data[i]) {
+                totalPower += machine.hourly_data[i].power;
+                totalThroughput += machine.hourly_data[i].throughput;
+              }
+            });
+            combinedTrends.push({
+              hour: i,
+              demand: totalThroughput,
+              renewable: totalPower * 10
+            });
+          }
+          setTrendsData(combinedTrends);
+        } else {
+          // Dummy initial data
+          setDashboardData({
+            efficiency: 87,
+            totalPower: 320,
+            totalThroughput: 1850,
+            operationalStatus: 92,
+            runningMachines: 3
+          });
+          const combinedTrends = Array.from({ length: 24 }, (_, i) => ({
             hour: i,
-            demand: totalThroughput,
-            renewable: totalPower * 10 // Scale for visibility
+            demand: 1500 + Math.round(Math.sin(i / 3) * 200) + Math.round(Math.random() * 100),
+            renewable: 2000 + Math.round(Math.cos(i / 4) * 150) + Math.round(Math.random() * 80)
+          }));
+          setTrendsData(combinedTrends);
+          setAnalyticsData({
+            energySourceData: { solar: 35, wind: 25, thermal: 30, hydro: 10 },
+            alertData: { warning: 7, error: 2, info: 14 },
+            downtimeData: { planned: 6, unplanned: 3 },
+            powerEfficiencyTrend: Array.from({ length: 24 }, (_, i) => ({
+              timestamp: i,
+              power: 300 + Math.round(Math.sin(i / 2) * 40),
+              efficiency: 80 + Math.round(Math.cos(i / 3) * 10)
+            })),
+            throughputEnergyCurve: Array.from({ length: 24 }, (_, i) => ({
+              throughput: 1400 + i * 20,
+              powerPerTon: 0.20 + Math.abs(Math.sin(i / 6)) * 0.1
+            }))
           });
         }
-        setTrendsData(combinedTrends);
-        
-        
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       }
     };
-    
+
     fetchAllData();
     const interval = setInterval(fetchAllData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [simulateDummy]);
+
+  // Live dummy fluctuations for production-like feel
+  useEffect(() => {
+    if (!simulateDummy) return;
+    const tick = setInterval(() => {
+      setDashboardData(prev => ({
+        efficiency: Math.max(70, Math.min(98, prev.efficiency + (Math.random() - 0.5) * 1.5)),
+        totalPower: Math.max(250, Math.min(450, prev.totalPower + (Math.random() - 0.5) * 10)),
+        totalThroughput: Math.max(1300, Math.min(2200, prev.totalThroughput + (Math.random() - 0.5) * 30)),
+        operationalStatus: Math.max(60, Math.min(100, prev.operationalStatus + (Math.random() - 0.5) * 1)),
+        runningMachines: Math.round(Math.max(2, Math.min(3, 2.8 + (Math.random() - 0.5) * 0.3)))
+      }));
+      setTrendsData(prev => prev.map(p => ({
+        ...p,
+        demand: Math.max(1000, Math.min(2500, p.demand + (Math.random() - 0.5) * 40)),
+        renewable: Math.max(1500, Math.min(2800, p.renewable + (Math.random() - 0.5) * 30))
+      })));
+      setAnalyticsData((prev: any) => prev ? {
+        ...prev,
+        alertData: {
+          warning: Math.max(0, prev.alertData.warning + (Math.random() < 0.2 ? 1 : 0)),
+          error: Math.max(0, prev.alertData.error + (Math.random() < 0.1 ? 1 : 0)),
+          info: Math.max(0, prev.alertData.info + (Math.random() < 0.3 ? 1 : 0)),
+        },
+      } : prev);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [simulateDummy]);
 
   // Removed unused subsidyInfo constant
 
@@ -92,14 +153,36 @@ const UserDashboard: React.FC = () => {
   ];
 
   const renderDashboard = () => (
-  <div className="space-y-6">
+    <div className="space-y-8">
+      {/* KPI Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="rounded-xl p-5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <div className="text-xs text-neutral-500">Operational Status</div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <div className="text-3xl font-bold text-brand-700 dark:text-brand-300">{fmtPct(dashboardData.operationalStatus)}</div>
+            <div className="text-xs text-neutral-500">{dashboardData.runningMachines}/3 running</div>
+          </div>
+        </div>
+        <div className="rounded-xl p-5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <div className="text-xs text-neutral-500">Average Efficiency</div>
+          <div className="mt-2 text-3xl font-bold text-blue-700 dark:text-blue-300">{fmtPct(dashboardData.efficiency)}</div>
+        </div>
+        <div className="rounded-xl p-5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <div className="text-xs text-neutral-500">Total Power</div>
+          <div className="mt-2 text-3xl font-bold text-orange-700 dark:text-orange-300">{fmtKW(dashboardData.totalPower)}</div>
+        </div>
+        <div className="rounded-xl p-5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <div className="text-xs text-neutral-500">Throughput</div>
+          <div className="mt-2 text-3xl font-bold text-neutral-800 dark:text-neutral-100">{fmtTH(dashboardData.totalThroughput)}</div>
+        </div>
+      </div>
       {/* Points Widget */}
       <div className="relative overflow-hidden rounded-xl p-6 bg-neutral-50 dark:bg-neutral-900/80 border border-neutral-200 dark:border-neutral-800 shadow-soft">
         <div className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-40 bg-[radial-gradient(circle_at_75%_25%,rgba(56,130,246,0.15),transparent_60%)]" />
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-neutral-800 dark:text-neutral-100 tracking-wide">Plant Status</h3>
-            <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{dashboardData.operationalStatus}%</p>
+            <p className="text-4xl font-bold text-brand-600 dark:text-brand-400">{fmtPct(dashboardData.operationalStatus)}</p>
             <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400">Plant Operational Status: {dashboardData.runningMachines}/3 machines running</p>
           </div>
           <div className="relative w-24 h-24">
@@ -133,7 +216,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Crusher Load</p>
-              <p className="text-2xl font-bold text-orange-700">{dashboardData.totalPower.toFixed(1)} kW</p>
+              <p className="text-2xl font-bold text-orange-700">{fmtKW(dashboardData.totalPower)}</p>
             </div>
             <Sun className="h-8 w-8 text-orange-600" />
           </div>
@@ -142,7 +225,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Avg Efficiency</p>
-              <p className="text-2xl font-bold text-blue-700">{dashboardData.efficiency}%</p>
+              <p className="text-2xl font-bold text-blue-700">{fmtPct(dashboardData.efficiency)}</p>
             </div>
             <Wind className="h-8 w-8 text-blue-600" />
           </div>
@@ -151,7 +234,7 @@ const UserDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">Feed Rate</p>
-              <p className="text-2xl font-bold text-gray-700">{dashboardData.totalThroughput.toFixed(1)} t/h</p>
+              <p className="text-2xl font-bold text-gray-700">{fmtTH(dashboardData.totalThroughput)}</p>
             </div>
             <Zap className="h-8 w-8 text-gray-600" />
           </div>
@@ -178,17 +261,103 @@ const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 24h Demand Graph */}
-      <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
-        <h3 className="text-lg font-semibold mb-4 text-gray-800">Throughput Trend</h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={trendsData}>
-            <XAxis dataKey="hour" />
-            <YAxis />
-            <Line type="monotone" dataKey="demand" stroke="#374151" strokeWidth={2} />
-            <Line type="monotone" dataKey="renewable" stroke="#6b7280" strokeWidth={2} />
-          </LineChart>
-        </ResponsiveContainer>
+      {/* Trends & Downtime */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 lg:col-span-2">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">24h Throughput & Power Trend</h3>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={trendsData}>
+              <XAxis dataKey="hour" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="demand" name="Throughput (t/h)" stroke="#374151" strokeWidth={2} />
+              <Line type="monotone" dataKey="renewable" name="Power (scaled)" stroke="#6b7280" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-xl p-6 shadow-subtle border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
+          <h3 className="text-lg font-semibold mb-4 text-gray-800">Efficiency Gauge</h3>
+          <div className="flex items-center gap-4">
+            <Battery className="h-8 w-8 text-gray-600" />
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-2">
+                <span>Efficiency</span>
+                <span className="font-semibold">{fmtPct(dashboardData.efficiency)}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div className="bg-green-600 h-3 rounded-full transition-all duration-300" style={{ width: `${dashboardData.efficiency}%` }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts & Energy Mix (from analytics when available) */}
+      {analyticsData && !analyticsData.error && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700">
+            <h3 className="text-lg font-semibold mb-4">Energy Source Mix</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={[
+                    { name: 'Solar', value: analyticsData.energySourceData?.solar ?? 0 },
+                    { name: 'Wind', value: analyticsData.energySourceData?.wind ?? 0 },
+                    { name: 'Thermal', value: analyticsData.energySourceData?.thermal ?? 0 },
+                    { name: 'Hydro', value: analyticsData.energySourceData?.hydro ?? 0 },
+                  ]} cx="50%" cy="50%" innerRadius={60} outerRadius={80} dataKey="value" label>
+                    {['#FDB813', '#00A86B', '#ef4444', '#3b82f6'].map((c, i) => (
+                      <Cell key={`cell-${i}`} fill={c} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700">
+            <h3 className="text-lg font-semibold mb-4">Alert Distribution</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={[
+                    { type: 'Warning', count: analyticsData.alertData?.warning ?? 0 },
+                    { type: 'Error', count: analyticsData.alertData?.error ?? 0 },
+                    { type: 'Info', count: analyticsData.alertData?.info ?? 0 },
+                  ]} cx="50%" cy="50%" innerRadius={40} outerRadius={80} dataKey="count" label>
+                    {['#f59e0b', '#ef4444', '#3b82f6'].map((c, i) => (
+                      <Cell key={`cell-${i}`} fill={c} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Maintenance Schedule */}
+      <div className="bg-white dark:bg-neutral-800 rounded-xl p-6 shadow-sm border border-neutral-200 dark:border-neutral-700">
+        <h3 className="text-lg font-semibold mb-4">Upcoming Maintenance</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            { title: 'Lubrication Check', due: 'Today', priority: 'High' },
+            { title: 'Vibration Analysis', due: 'Tomorrow', priority: 'Medium' },
+            { title: 'Wear Inspection', due: 'Dec 12', priority: 'High' },
+          ].map((item, i) => (
+            <div key={i} className="p-4 rounded-lg border bg-gray-50 dark:bg-neutral-700 border-gray-200 dark:border-neutral-600">
+              <div className="font-medium">{item.title}</div>
+              <div className="text-xs text-neutral-500">Due: {item.due}</div>
+              <div className="mt-2 text-xs">
+                <span className={`px-2 py-1 rounded bg-${item.priority === 'High' ? 'red' : 'yellow'}-100 text-${item.priority === 'High' ? 'red' : 'yellow'}-700 dark:bg-${item.priority === 'High' ? 'red' : 'yellow'}-900/30 dark:text-${item.priority === 'High' ? 'red' : 'yellow'}-300`}>{item.priority}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Emergency Contacts */}
@@ -210,145 +379,9 @@ const UserDashboard: React.FC = () => {
     </div>
   );
 
-  const renderUsage = () => (
-    <div className="space-y-6">
-      {/* Energy Mix */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-6 shadow-sm border">
-          <h3 className="text-lg font-semibold mb-4">Energy Source Mix</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Solar', value: 45 },
-                    { name: 'Wind', value: 30 },
-                    { name: 'Grid', value: 25 }
-                  ]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {[
-                    { name: 'Solar', value: 45 },
-                    { name: 'Wind', value: 30 },
-                    { name: 'Grid', value: 25 }
-                  ].map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#FDB813', '#00A86B', '#808080'][index % 3]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // Monitoring and Analytics tabs removed
 
-  const renderAnalytics = () => {
-    if (!analyticsData) return <div className="text-center py-8 text-gray-800 dark:text-gray-200">Loading analytics...</div>;
-    if (analyticsData.error) return <div className="text-center py-8 text-red-600">Error loading analytics</div>;
-
-    const energySourceData = [
-      { name: 'Thermal', value: analyticsData.energySourceData.thermal },
-      { name: 'Solar', value: analyticsData.energySourceData.solar },
-      { name: 'Wind', value: analyticsData.energySourceData.wind },
-      { name: 'Hydro', value: analyticsData.energySourceData.hydro }
-    ];
-
-    const alertData = [
-      { type: 'Warning', count: analyticsData.alertData.warning },
-      { type: 'Error', count: analyticsData.alertData.error },
-      { type: 'Info', count: analyticsData.alertData.info }
-    ];
-
-    const downtimeData = [
-      { type: 'Planned', hours: analyticsData.downtimeData.planned },
-      { type: 'Unplanned', hours: analyticsData.downtimeData.unplanned }
-    ];
-
-    const COLORS = ['#f59e0b', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6'];
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 shadow-lg border border-orange-200 dark:border-orange-700">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Energy Source Distribution</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={energySourceData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label>
-                  {energySourceData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-700">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Alert Distribution</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie data={alertData} cx="50%" cy="50%" innerRadius={40} outerRadius={80} dataKey="count" label>
-                  {alertData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 shadow-lg border border-blue-200 dark:border-blue-700">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Downtime Comparison</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={downtimeData}>
-              <XAxis dataKey="type" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="hours" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl p-6 shadow-lg border border-green-200 dark:border-green-700">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Power & Efficiency Trend</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={analyticsData.powerEfficiencyTrend.slice(0, 12)}>
-                <XAxis dataKey="timestamp" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Area type="monotone" dataKey="power" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-                <Area type="monotone" dataKey="efficiency" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-purple-200 dark:border-purple-700">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Energy Efficiency Curve</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={analyticsData.throughputEnergyCurve.slice(0, 12)}>
-                <XAxis dataKey="throughput" tick={{ fontSize: 10 }} />
-                <YAxis />
-                <Tooltip />
-                <Area type="monotone" dataKey="powerPerTon" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Analytics rendering removed
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -371,34 +404,11 @@ const UserDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Tab Navigation */}
-        <div className="bg-gray-50 rounded-xl shadow-sm border border-gray-200 mb-6">
-          <div className="flex">
-            {[
-              { id: 'dashboard', label: 'Controls', icon: Home },
-              { id: 'usage', label: 'Monitoring', icon: Activity },
-              { id: 'analytics', label: 'Analytics', icon: Activity }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center space-x-2 py-4 px-6 border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-gray-600 text-gray-700 bg-gray-100'
-                    : 'border-transparent text-gray-600 hover:text-gray-800'
-                }`}
-              >
-                <tab.icon className="h-5 w-5" />
-                <span className="font-medium">{tab.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Removed Controls header section as requested */}
 
         {/* Tab Content */}
         <div>
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'usage' && renderUsage()}
-          {activeTab === 'analytics' && renderAnalytics()}
+          {renderDashboard()}
         </div>
       </div>
     </div>
