@@ -3,8 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMachine } from '../contexts/MachineProvider';
 import { api } from '../services/api';
 import { 
-  Settings, BarChart3, AlertTriangle, Brain, LogOut, MessageCircle, Users,
-  Sun, Wind, Zap, CheckCircle, XCircle, Clock, Eye, Monitor
+  Settings, BarChart3, Brain,
+  Sun, Wind, Zap, Monitor
 } from 'lucide-react';
 import { Panel } from './ui/Panel';
 import { Button } from './ui/Button';
@@ -28,9 +28,7 @@ const AdminDashboard: React.FC = () => {
     'Conveyor': true,
     'AI System': true
   });
-  const [priorityRequests, setPriorityRequests] = useState<any[]>([]);
   const [regionalData, setRegionalData] = useState<any[]>([]);
-  const [pendingSignups, setPendingSignups] = useState<any[]>([]);
   const [analyticsData, setAnalyticsData] = useState<any>(null);
   
   useEffect(() => {
@@ -53,10 +51,8 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [overview, alerts, signups] = await Promise.all([
-          api.getAnalyticsOverview(),
-          api.getAnalyticsAlerts(),
-          api.getPendingSignups()
+        const [overview] = await Promise.all([
+          api.getAnalyticsOverview()
         ]);
         
         if (overview.machines.length > 0) {
@@ -76,23 +72,8 @@ const AdminDashboard: React.FC = () => {
           };
           setSystemStatus(newSystemStatus);
           
-          // Convert alerts to priority requests
-          const requests = alerts.alerts.slice(0, 5).map((alert: any, index: number) => ({
-            id: alert._id || index,
-            facility: `Machine ${alert.machine_id?.split('-')[1] || '1'}`,
-            priority: alert.severity === 'critical' ? 'Critical' : 
-                     alert.severity === 'high' ? 'High' : 
-                     alert.severity === 'medium' ? 'Medium' : 'Low',
-            reason: alert.message,
-            status: 'Pending',
-            timestamp: alert.created_at
-          }));
-          setPriorityRequests(requests);
         }
         
-        if (signups?.signups) {
-          setPendingSignups(signups.signups);
-        }
       } catch (error) {
         console.error('Failed to fetch admin data:', error);
       }
@@ -103,12 +84,6 @@ const AdminDashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
   
-  const updateRequestStatus = (id: number, status: string) => {
-    setPriorityRequests(prev => 
-      prev.map((req: any) => req.id === id ? { ...req, status } : req)
-    );
-  };
-
   const energyModes = ['Crusher Only', 'Mill Only', 'Crusher+Mill', 'Full Circuit', 'AI Auto Mode'];
 
   // removed legacy handler replaced by direct setEnergyMode usage
@@ -260,138 +235,48 @@ const AdminDashboard: React.FC = () => {
     </div>
   );
 
-  const handleApproveSignup = async (signupId: string) => {
-    try {
-      await api.approveSignup(signupId);
-      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
-      alert('Operator approved successfully!');
-    } catch (error: any) {
-      alert('Failed to approve: ' + error.message);
-    }
-  };
-
-  const handleRejectSignup = async (signupId: string) => {
-    try {
-      await api.rejectSignup(signupId);
-      setPendingSignups(prev => prev.filter(s => s._id !== signupId));
-      alert('Operator signup rejected!');
-    } catch (error: any) {
-      alert('Failed to reject: ' + error.message);
-    }
-  };
-
-  const renderPriorityManagement = () => (
+  const renderAdvancedAnalytics = () => (
     <div className="space-y-6">
-      {pendingSignups.length > 0 && (
-        <Panel title="Pending Operator Approvals">
-          <div className="space-y-4">
-            {pendingSignups.map(signup => (
-              <div key={signup._id} className="flex items-start justify-between rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-sm font-semibold">{signup.username}</h4>
-                    <Badge tone="warning" soft>Pending Approval</Badge>
-                  </div>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">Employee ID: {signup.emp_id}</p>
-                  <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                    <Clock className="h-3 w-3" />
-                    <span>{new Date(signup.created_at).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <Button size="sm" variant="primary" onClick={() => handleApproveSignup(signup._id)} iconLeft={<CheckCircle className="h-4 w-4" />}>Approve</Button>
-                  <Button size="sm" variant="danger" onClick={() => handleRejectSignup(signup._id)} iconLeft={<XCircle className="h-4 w-4" />}>Reject</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
-      <Panel title="Equipment Priority Management">
-        <div className="space-y-4">
-          {priorityRequests.map(request => (
-            <div key={request.id} className="flex items-start justify-between rounded-lg border border-neutral-200 dark:border-neutral-700 p-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <h4 className="text-sm font-semibold">{request.facility}</h4>
-                  <Badge tone={
-                    request.priority === 'Critical' ? 'accent' :
-                    request.priority === 'High' ? 'danger' :
-                    request.priority === 'Medium' ? 'warning' : 'success'
-                  } soft>
-                    {request.priority}
-                  </Badge>
-                </div>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">{request.reason}</p>
-                <div className="flex items-center gap-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                  <Clock className="h-3 w-3" />
-                  <span>{new Date(request.timestamp).toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 ml-4">
-                {request.status === 'Pending' ? (
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="primary" onClick={() => updateRequestStatus(request.id, 'Approved')} iconLeft={<CheckCircle className="h-4 w-4" />}>Approve</Button>
-                    <Button size="sm" variant="danger" onClick={() => updateRequestStatus(request.id, 'Rejected')} iconLeft={<XCircle className="h-4 w-4" />}>Reject</Button>
-                  </div>
-                ) : (
-                  <Badge tone={request.status === 'Approved' ? 'success' : 'danger'}>{request.status}</Badge>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Panel>
-    </div>
-  );
-
-  const renderAdvancedAnalytics = () => {
-    if (!analyticsData) return <div className="text-center py-8 text-primary">Loading analytics...</div>;
-    if (analyticsData.error) return <div className="text-center py-8 text-red-600">Error loading analytics</div>;
-
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 shadow-lg border border-blue-200 dark:border-blue-700">
-            <h3 className="text-lg font-semibold mb-4 text-primary">Power & Efficiency Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analyticsData.powerEfficiencyTrend.slice(0, 12)} className="chart-surface">
-                <XAxis dataKey="timestamp" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
-                <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
-                <Bar dataKey="power" fill="#3b82f6" name="Power (kW)" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="efficiency" fill="#10b981" name="Efficiency (%)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 shadow-lg border border-orange-200 dark:border-orange-700">
-            <h3 className="text-lg font-semibold mb-4 text-primary">Throughput-Energy Curve</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analyticsData.throughputEnergyCurve.slice(0, 12)} className="chart-surface">
-                <XAxis dataKey="throughput" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
-                <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
-                <Bar dataKey="powerPerTon" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-700">
-          <h3 className="text-lg font-semibold mb-4 text-primary">Crusher Temperature Monitoring</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-6 shadow-lg border border-blue-200 dark:border-blue-700">
+          <h3 className="text-lg font-semibold mb-4 text-primary">Power & Efficiency Trend</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analyticsData.temperatureData.slice(0, 20)} className="chart-surface">
+            <BarChart data={analyticsData.powerEfficiencyTrend.slice(0, 12)} className="chart-surface">
               <XAxis dataKey="timestamp" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
               <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
-              <Bar dataKey="temperature" fill="#ef4444" name="Temperature (°C)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="power" fill="#3b82f6" name="Power (kW)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="efficiency" fill="#10b981" name="Efficiency (%)" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded">
-            <p className="text-sm text-amber-800 dark:text-amber-200">⚠️ Threshold: 70°C - Monitor temperature to prevent overheating</p>
-          </div>
+        </div>
+
+        <div className="bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-6 shadow-lg border border-orange-200 dark:border-orange-700">
+          <h3 className="text-lg font-semibold mb-4 text-primary">Throughput-Energy Curve</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={analyticsData.throughputEnergyCurve.slice(0, 12)} className="chart-surface">
+              <XAxis dataKey="throughput" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
+              <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
+              <Bar dataKey="powerPerTon" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
-    );
-  };
+
+      <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-700">
+        <h3 className="text-lg font-semibold mb-4 text-primary">Crusher Temperature Monitoring</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={analyticsData.temperatureData.slice(0, 20)} className="chart-surface">
+            <XAxis dataKey="timestamp" tick={{ fill: 'var(--chart-axis)', fontSize: 10 }} />
+            <YAxis tick={{ fill: 'var(--chart-axis)', fontSize: 12 }} />
+            <Bar dataKey="temperature" fill="#ef4444" name="Temperature (°C)" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded">
+          <p className="text-sm text-amber-800 dark:text-amber-200">⚠️ Threshold: 70°C - Monitor temperature to prevent overheating</p>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderMap = () => (
     <div className="space-y-6">
@@ -593,7 +478,6 @@ const AdminDashboard: React.FC = () => {
             {[
               { id: 'control', label: 'AI Control', icon: Settings },
               { id: 'analytics', label: 'Machine Data', icon: BarChart3 },
-              { id: 'priority', label: 'Monitoring & Alerts', icon: AlertTriangle },
               { id: 'map', label: 'ML Predictions', icon: Brain },
               { id: 'advanced', label: 'Analytics', icon: Monitor }
             ].map((tab) => (
@@ -617,7 +501,6 @@ const AdminDashboard: React.FC = () => {
         <div>
           {activeTab === 'control' && renderControl()}
           {activeTab === 'analytics' && renderAnalytics()}
-          {activeTab === 'priority' && renderPriorityManagement()}
           {activeTab === 'map' && renderMap()}
           {activeTab === 'advanced' && renderAdvancedAnalytics()}
         </div>

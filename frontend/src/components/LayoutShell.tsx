@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, MessageCircle, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Users, Eye, Play, Square, Bell, CheckCircle, XCircle, Activity, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, LogOut, Moon, Sun, ChevronLeft, ChevronRight, Monitor, Play, Square, Bell, CheckCircle, XCircle, Activity, BarChart3, Box } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMachine } from '../contexts/MachineProvider';
 import { api } from '../services/api';
@@ -20,11 +20,9 @@ function useColorMode() {
 
 const navigation = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/chatbot', label: 'Chatbot', icon: MessageCircle },
-  { to: '/digital-twin', label: 'Digital Twin', icon: Eye },
   { to: '/simulate', label: 'Simulation', icon: Activity },
   { to: '/graph', label: 'Analytics', icon: BarChart3 },
-  { to: '/admin/user-logs', label: 'User Logs', icon: Users },
+  { to: '/crusher-simulation', label: 'Crusher 3D', icon: Box },
 ];
 
 interface LayoutShellProps {
